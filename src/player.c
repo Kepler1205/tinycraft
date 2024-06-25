@@ -16,11 +16,7 @@ extern player player_init(void) {
 		.camera_mode = FIRST_PERSON,
 		.hp = 20,
 		.hunger = 20,
-		.is_flying = 1,
-		.collider = (BoundingBox){
-			.max = 1,
-			.min = 0,
-		},
+		.is_flying = 0,
 		.camera = cam,
 	};
 
@@ -29,7 +25,7 @@ extern player player_init(void) {
 		.up = {0,1,0},
 		.fovy = 70,
 		.projection = CAMERA_PERSPECTIVE,
-		.target = Vector3Add(p.position, (Vector3){.z = p.reach})
+		.target = Vector3Add(p.position, (Vector3){.x = p.reach, 1.6f})
 	};
 
 	return p;
@@ -38,7 +34,7 @@ extern player player_init(void) {
 extern void player_destroy(player* player) {
 	free(player->camera);
 }
-int printf(const char* o, ...);
+
 extern void player_movement(player* player) {
 	// DEBUG
 	if (IsKeyPressed(KEY_R)) {
@@ -87,6 +83,7 @@ extern void player_movement(player* player) {
 	} else {
 		if (IsKeyPressed(KEY_F)) {
 			player->is_flying = 1;
+			player->velocity = Vector3Zero();
 		}
 	}
 

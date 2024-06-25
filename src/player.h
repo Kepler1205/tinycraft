@@ -3,8 +3,10 @@
 #include <raylib.h>
 
 #include "items.h"
+#include "world.h"
 
 typedef struct {
+	entity e;
 	Vector3 position; // do not edit directly, use player_set_position()
 	Vector3 velocity; // velocity from external forces (gravity, knockback)
 	Vector3 input_vector; // velocity from player inputs
@@ -14,7 +16,6 @@ typedef struct {
 	float reach;
 	bool is_flying;
 	bool is_on_ground;
-	BoundingBox collider;
 	enum {
 		FIRST_PERSON = 0,
 		THIRD_PERSON,

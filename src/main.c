@@ -2,7 +2,6 @@
 
 #include <raylib.h>
 #include <raymath.h>
-#include <raygui.h>
 
 #include "menu.h"
 #include "player.h"
@@ -29,9 +28,6 @@ int main(void) {
 	bool cursor_status = 0;
 
 	globals_init(); // initializes settings and global variables
-	Font gui_font = GuiGetFont();
-	gui_font.baseSize *= game_settings.gui_scale;
-	GuiSetFont(gui_font);
 
 	player player = player_init();
 
@@ -71,15 +67,16 @@ int main(void) {
 
 
 		// INPUT
-		Vector3 previous_position = player.position;
 		if (gamemode == MODE_MENU || gamemode == MODE_PAUSED) {
 			if (!cursor_status) {
 				EnableCursor();
 				cursor_status = 1;
 			}
 
-			if (gamemode == MODE_MENU)
+			if (gamemode == MODE_MENU) {
+				player.input_vector = Vector3Zero();
 				player_physics(&player);
+			}
 
 		} else {
 			if (cursor_status) {
@@ -92,39 +89,46 @@ int main(void) {
 
 			player_movement(&player);
 			player_physics(&player);
-		}
 
 		// COLLISION
 
-/*
+		// TMP until collision
 		if (player.position.y < 0) {
-			player.position.y = 0;
-		}
-*/
+			player.is_on_ground = 1;
+			player.velocity.y = 0;
+			player_set_position(&player, (Vector3){
+					.x = player.position.x,
+					.y = 0,
+					.z = player.position.z
+					});
+		} else if (player.position.y > 0)
+			player.is_on_ground = 0;
 
+		}
 		// RENDER
 		BeginDrawing();
 	
 		BeginMode3D(*player.camera);
 
 		// draw player outline
+
 		DrawCubeWires((Vector3){
 				.x = player.position.x,
-				.y = player.position.y + 1,
+				.y = player.position.y,
 				.z = player.position.z
-				}, 1, 2, 0.6, RED);
+				}, .6, 1.8, .6, WHITE);
 
 		DrawCube((Vector3){ // player pos box
 				.x = player.position.x,
 				.y = player.position.y + .25,
 				.z = player.position.z
-				}, .5, .5, .5, PURPLE);
+				}, .6, .1, .6, PURPLE);
 
-		DrawCubeV((Vector3){ // player target box
+		/* DrawCubeV((Vector3){ // player target box
 				.x = player.camera->target.x,
 				.y = player.camera->target.y,
 				.z = player.camera->target.z
-				}, (Vector3){.25,.25,.25}, PURPLE);
+				}, (Vector3){.25,.25,.25}, PURPLE); */
 
 		DrawCube((Vector3){0,1,0},
 				1.0f, 1.0f, 1.0f,
