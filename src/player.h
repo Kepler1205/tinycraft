@@ -5,11 +5,20 @@
 #include "items.h"
 #include "world.h"
 
+
+typedef enum {
+	MODE_SURVIVAL,
+	MODE_CREATIVE,
+	MODE_SPECTATOR,
+	MODE_PAUSED,
+	MODE_MENU,
+	MODE_TITLESCREEN,
+} gamemode_type;
+
 typedef struct {
 	entity e;
-	Vector3 position; // do not edit directly, use player_set_position()
-	Vector3 velocity; // velocity from external forces (gravity, knockback)
 	Vector3 input_vector; // velocity from player inputs
+	gamemode_type gamemode;
 	unsigned int hp;
 	unsigned int hunger;
 	float movement_speed;
@@ -37,3 +46,5 @@ extern void player_add_force(player* player, Vector3 force);
 extern void player_add_impulse(player* player, Vector3 force);
 extern void player_add_position(player* player, Vector3 position_delta);
 extern void player_set_position(player* player, Vector3 position);
+
+void player_collide(player* player, Vector3 block_pos);

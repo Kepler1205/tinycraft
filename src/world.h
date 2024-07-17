@@ -1,30 +1,9 @@
 #pragma once
 
-#include <inttypes.h>
-
+#include <stdint.h>
 #include <raylib.h>
 
-#define WORLD_MAX_HEIGHT 256 // max world height in blocks
-
-// block position in world space
-typedef struct {
-	int64_t x, y, z;
-} world_block_pos;
-
-typedef struct {
-	int id;
-	world_block_pos position;
-} block;
-
-// used to locate a chunk
-typedef struct {
-	int32_t x, y, z;
-} world_chunk_pos;
-
-typedef struct {
-	world_chunk_pos position;
-	block blocks[16][WORLD_MAX_HEIGHT][16];
-} chunk;
+#include "chunk.h"
 
 // entities are moveable objects with one collider 
 typedef struct {
@@ -34,9 +13,68 @@ typedef struct {
 	Vector3 size;
 } entity;
 
+typedef struct {
+	// resizeable array of pointers to chunks
+	chunk_dictionary chunk_dict;
+	chunk_generation_options chunk_opts;
+} world_data;
+
+/* Contains data relevent to rendering the world
+ */
+extern world_data WORLD;
+
+typedef struct {
+	Vector3 collision_depth;
+	bool collided;
+} aabb_collision_result;
+
+/* Initializes WORLD using wd. 
+ * If wd is NULL, the default values are used.
+ * This must be called before any chunk
+ * generation.
+ * There is currently no "world_destroy" function.
+ */
+void world_init(world_data* wd);
+
 // CONVERSION FUNCTIONS
-Vector3 world_block_pos_to_real(world_block_pos input);
-world_block_pos real_pos_to_world_block(Vector3 input);
+Vector3 get_block_real_pos(world_chunk_pos chunk_pos, int bx, int by, int bz);
+
+// CHUNK FUNCTIONS
+
+/* checks world dictionary for a chunk in pos.
+ * returns NULL if no chunk exists in dictionary
+ */
+chunk* world_chunk_lookup(world_chunk_pos position);
+
+/* Will generate a chunk at pos if no chunk exists already
+ */
+chunk* world_load_chunk(world_chunk_pos pos);
+
+/* Unloads a chunk at pos
+ */
+void world_unload_chunk(world_chunk_pos pos);
+
+/* Unload every chunk in world
+ */
+void world_unload_all_chunks(void);
+
+/* Get a block's handle from a loaded chunk.
+ * ONLY USE FOR ONE-OFFS.
+ * Ths function does a chunk lookup to get one block,
+ * if you want to manipulate a lot of block data,
+ * use world_chunk_lookup and keep the chunk* around.
+ */
+block* world_get_block(world_chunk_pos chunk_pos, uint16_t bx, uint16_t by, uint16_t bz);
+
+/* Render all chunks in WORLD dictionary
+ */
+void world_render_chunks(Camera3D* camera, Shader shader);
 
 // COLLISION FUNCTIONS
 
+/* Calculates collision for an entity and block.
+ * returns a signed value for overlap depth so you can
+ * just do e.position + result.overlap_depth to move the 
+ * entity out of the block
+ */
+aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos);

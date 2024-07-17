@@ -3,10 +3,12 @@
 #include <raylib.h>
 
 typedef struct {
+	unsigned int render_distance;
 	int gui_scale;
 	Vector2 display_resolution;
 } settings;
 
-static settings game_settings;
+extern settings SETTINGS;
+
 
 void globals_init(void);
