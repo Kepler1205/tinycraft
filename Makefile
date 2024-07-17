@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -g
+# CFLAGS = -Ofast
 LDFLAGS = -lraylib -lm
 SRC_DIR = ./src
 BUILD_DIR = ./build

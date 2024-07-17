@@ -1,17 +1,40 @@
+#include <stdlib.h>
 #include <stdio.h>
 
 #include <raylib.h>
 #include <raymath.h>
 
+#define RLIGHTS_IMPLEMENTATION
+#include <rlights.h>
+
 #include "menu.h"
 #include "player.h"
 #include "global.h"
-
+#include "world.h"
+#include "chunk.h"
+ 
 int main(void) {
+
+	bool test = 0;
+
+	if (test) {
+		world_chunk_pos pos = {1, 0};
+		int x, y, z;
+		x=4;
+		y=50;
+		z=2;
+		Vector3 res = get_block_real_pos(pos, x, y, z);
+		printf("chunk: %d %d\noffset: %d %d %d\nresult: %f %f %f\n", 
+				pos.x, pos.z,
+				x, y, z,
+				res.x, res.y, res.z
+				);
+		return 0;
+	}
 
 	// Window opts
 	InitWindow(1920, 1080, "Tinycraft");
-	SetTargetFPS(165);
+	SetTargetFPS(256);
 	// MaximizeWindow();
 	SetExitKey(KEY_BACKSPACE);
 	DisableCursor();
@@ -20,60 +43,111 @@ int main(void) {
 	const Vector2 m_pos = GetMonitorPosition(main_monitor);
 
 	SetWindowPosition(m_pos.x, m_pos.y);
-	SetWindowState(
-			  FLAG_WINDOW_MAXIMIZED 
-			| FLAG_WINDOW_RESIZABLE
-			);
+	SetWindowState(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
 	
 	bool cursor_status = 0;
 
-	globals_init(); // initializes settings and global variables
+	// initializes settings and global variables, looking to deprecate;
+	// settings should be their own translation unit
+	globals_init();
+	world_init(NULL);
+
+	// initialize seed value
+	perlin_noise_init(WORLD.chunk_opts.seed);
 
 	player player = player_init();
 
-	typedef enum {
-		MODE_SURVIVAL,
-		MODE_CREATIVE,
-		MODE_PAUSED,
-		MODE_MENU,
-		MODE_TITLESCREEN,
-	} gamemode_type;
-	gamemode_type gamemode = MODE_SURVIVAL; // default gamemode
+	player.gamemode = MODE_SURVIVAL; // default gamemode
 
+	// shader stuff
+	Shader chunk_shader = LoadShader("./shaders/chunk_vert.glsl", "./shaders/chunk_frag.glsl");
+	if (chunk_shader.id == 0) {
+		fprintf(stderr, "ERROR: Failed to load chunk shaders\n");
+		return -1;
+	}
+
+	// Get shader locations
+    chunk_shader.locs[SHADER_LOC_MATRIX_MVP] = GetShaderLocation(chunk_shader, "mvp");
+    chunk_shader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(chunk_shader, "viewPos");
+    chunk_shader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocationAttrib(chunk_shader, "instanceTransform");
+
+    // Set shader ambient light level
+    int ambient_loc = GetShaderLocation(chunk_shader, "ambient");
+    SetShaderValue(chunk_shader, ambient_loc, (float[4]){ 0.2f, 0.2f, 0.2f, 1.0f }, SHADER_UNIFORM_VEC4);
+
+	// sunlight
+	CreateLight(LIGHT_DIRECTIONAL, (Vector3){30,30,30}, Vector3Zero(), WHITE, chunk_shader);
+
+	// ----- GAME LOOP ----- //
 	while (!WindowShouldClose()) {
+
 		ClearBackground(BLACK);
 
 		if (IsKeyPressed(KEY_ESCAPE)) {
-			switch (gamemode) {
+			switch (player.gamemode) {
 				case (MODE_MENU):
 				case (MODE_PAUSED):
-					gamemode = MODE_SURVIVAL;
+					player.gamemode = MODE_SURVIVAL;
 					break;
 				default:
-					gamemode = MODE_PAUSED;
+					player.gamemode = MODE_PAUSED;
 			}
 		}
 
 		if (IsKeyPressed(KEY_E)) {
-			switch (gamemode) {
+			switch (player.gamemode) {
 				case (MODE_MENU):
 				case (MODE_PAUSED):
-					gamemode = MODE_SURVIVAL;
+					player.gamemode = MODE_SURVIVAL;
 					break;
 				default:
-					gamemode = MODE_MENU;
+					player.gamemode = MODE_MENU;
 			}
 		}
 
 
+
+		// CHUNK GENERATION
+		world_chunk_pos player_chunk_pos = {
+			// use of floor() is required since truncation rounds
+			// in th opposite direction for negative numbers.
+			.x = floor(player.e.position.x / WORLD_CHUNK_WIDTH),
+			.z = floor(player.e.position.z / WORLD_CHUNK_WIDTH),
+		};
+
+		int rd = SETTINGS.render_distance;
+
+		for (int i = -rd + 1; i < rd; i++) {
+			for (int j = -rd + 1; j < rd; j++) {
+				world_chunk_pos chunk_pos = {
+					.x = i + player_chunk_pos.x,
+					.z = j + player_chunk_pos.z,
+				};
+
+				world_load_chunk(chunk_pos);
+			}
+		}
+
+		/* for (int i = -rd - 1; i < rd + 1; i++) {
+			for (int j = -rd - 1; j < rd + 1; j++) {
+				world_chunk_pos chunk_pos = {
+					.x = i + player_chunk_pos.x + 1,
+					.z = j + player_chunk_pos.z + 1,
+				};
+
+				world_unload_chunk(chunk_pos);
+			}
+		} */
+
+
 		// INPUT
-		if (gamemode == MODE_MENU || gamemode == MODE_PAUSED) {
+		if (player.gamemode == MODE_MENU || player.gamemode == MODE_PAUSED) {
 			if (!cursor_status) {
 				EnableCursor();
 				cursor_status = 1;
 			}
 
-			if (gamemode == MODE_MENU) {
+			if (player.gamemode == MODE_MENU) {
 				player.input_vector = Vector3Zero();
 				player_physics(&player);
 			}
@@ -84,72 +158,140 @@ int main(void) {
 				cursor_status = 0;
 			}
 
-			if (gamemode == MODE_CREATIVE)
-				player.is_flying = 1; // TODO setup player.gamemode 
-
 			player_movement(&player);
 			player_physics(&player);
 
-		// COLLISION
+			// COLLISION
 
-		// TMP until collision
-		if (player.position.y < 0) {
-			player.is_on_ground = 1;
-			player.velocity.y = 0;
-			player_set_position(&player, (Vector3){
-					.x = player.position.x,
-					.y = 0,
-					.z = player.position.z
-					});
-		} else if (player.position.y > 0)
+			if (player.gamemode == MODE_SPECTATOR)
+				goto render;
+			// very temporary much slow
+			// just checks every rendered block for collision
 			player.is_on_ground = 0;
+			int rd = SETTINGS.render_distance;
+			for (int ix = -rd; ix < rd; ix++) {
+				for (int jx = -rd; jx < rd; jx++) {
+
+					world_chunk_pos chunk_pos = (world_chunk_pos){ix + player_chunk_pos.x,jx + player_chunk_pos.z};
+					chunk* chunk = world_chunk_lookup(chunk_pos);
+
+					if (chunk == NULL) {
+						// printf("%s:%d lookup NULL chunk\n", __FILE__, __LINE__);
+						continue;
+					}
+
+
+					
+					for (unsigned int i = 0; i < WORLD_CHUNK_WIDTH; i++) {
+						for (unsigned int j = 0; j < WORLD_CHUNK_HEIGHT; j++) {
+							for (unsigned int k = 0; k < WORLD_CHUNK_WIDTH; k++) {
+								if (chunk->blocks[i][j][k].id != 0) {
+									Vector3 block_pos = get_block_real_pos(chunk_pos,i,j,k);
+
+/*
+									if (IsKeyPressedRepeat(MOUSE_BUTTON_LEFT)) {
+										for (float l = 0; l < 1; l += (0.4f/5.0f)) {
+											Vector3 lerp;
+											if (player.camera_mode == FIRST_PERSON) {
+												lerp = Vector3Lerp(
+														player.camera->position,
+														player.camera->target,
+														l);
+											}
+											if (lerp.x > block_pos.x && lerp.x < block_pos.x + 1 &&
+												lerp.y > block_pos.y && lerp.y < block_pos.y + 1 &&
+												lerp.z > block_pos.z && lerp.z < block_pos.z + 1) {
+												chunk->blocks[i][j][k].id = 0;
+											}
+										}
+									}
+*/
+
+									player_collide(&player, block_pos);
+								}
+							}
+						}
+					}
+				}
+
+			}
+
+			if (player.is_on_ground)
+				player.e.velocity.y = 0;
+
+
 
 		}
+
+render:
 		// RENDER
 		BeginDrawing();
 	
 		BeginMode3D(*player.camera);
 
-		// draw player outline
-
-		DrawCubeWires((Vector3){
-				.x = player.position.x,
-				.y = player.position.y,
-				.z = player.position.z
-				}, .6, 1.8, .6, WHITE);
+		// draw player hitbox
+		DrawCubeWiresV((Vector3){
+					.x = player.e.position.x,
+					.y = player.e.position.y + (player.e.size.y / 2),
+					.z = player.e.position.z,
+				}, player.e.size, WHITE);
 
 		DrawCube((Vector3){ // player pos box
-				.x = player.position.x,
-				.y = player.position.y + .25,
-				.z = player.position.z
-				}, .6, .1, .6, PURPLE);
+				.x = player.e.position.x,
+				.y = player.e.position.y + .05,
+				.z = player.e.position.z
+				}, player.e.size.x, .1, player.e.size.z, PURPLE);
 
-		/* DrawCubeV((Vector3){ // player target box
-				.x = player.camera->target.x,
-				.y = player.camera->target.y,
-				.z = player.camera->target.z
-				}, (Vector3){.25,.25,.25}, PURPLE); */
+		// DrawGrid(32, 1);
+		DrawGrid(50, 16);
+		world_render_chunks(player.camera, chunk_shader);
 
-		DrawCube((Vector3){0,1,0},
-				1.0f, 1.0f, 1.0f,
-				(Color){
-					.a = 255,
-					.r = 0,
-					.g = 128,
-					.b = 255,
-				});
+		// chunk borders BROKEN
+		int cb_dist = 5;
+		for (int i = cb_dist; i < cb_dist; i++) {
+			for (int j = cb_dist; j < cb_dist; j++) {
 
-
-		DrawPlane(Vector3Zero(), (Vector2){20,20}, GRAY);
-		DrawGrid(20, 1);
+				DrawCubeWiresV(
+						(Vector3){
+							.x = i * WORLD_CHUNK_WIDTH,
+							.y = 0.5f * WORLD_CHUNK_HEIGHT,
+							.z = j * WORLD_CHUNK_WIDTH,
+						},
+						(Vector3){
+							.x = WORLD_CHUNK_WIDTH,
+							.y = WORLD_CHUNK_HEIGHT,
+							.z = WORLD_CHUNK_WIDTH,
+						},
+						RED
+						);
+			}
+		}
 
 		EndMode3D();
 
 		// DRAW UI
-
+		
+		int screen_center_x = GetScreenWidth() / 2;
+		int screen_center_y = GetScreenHeight() / 2;
+		int reticle_width = 3;
+		int reticle_height = 60;
+		DrawRectangle(
+				screen_center_x - reticle_width / 2,
+				screen_center_y - reticle_height / 2,
+				reticle_width,
+				reticle_height,
+				(Color) { .a=128, .r=20,.g=20,.b=20 }
+				);
+		DrawRectangle(
+				screen_center_x - reticle_height / 2,
+				screen_center_y - reticle_width / 2,
+				reticle_height,
+				reticle_width,
+				(Color) { .a=128, .r=20,.g=20,.b=20 }
+				);
 
 		// Draw menu
-		switch (gamemode) {
+		switch (player.gamemode) {
 			case (MODE_PAUSED):
 				menu_pause_draw();
 				break;
@@ -160,19 +302,39 @@ int main(void) {
 
 		DrawFPS(0,0);
 
+		const char* mode_str;
+		switch (player.gamemode) {
+			case (MODE_SURVIVAL):
+				mode_str = "SURVIVAL\n";
+				break;
+			case (MODE_CREATIVE):
+				mode_str = "CREATIVE\n";
+				break;
+			case (MODE_SPECTATOR):
+				mode_str = "SPECTATOR\n";
+				break;
+			default:
+				break;
+		}
+
+		DrawText(mode_str, 15, 30, 22, RED);
+
 		char buf[512];
 		snprintf(buf, sizeof(buf), 
-				"Player position: %f %f %f\n\n"
-				"Player velocity: %f %f %f\n\n"
+				"player.e.position: %f %f %f\n\n"
+				"player.e.velocity: %f %f %f\n\n"
+				"player chunk pos: %d %d\n\n"
 				"Player inputvec: %f %f %f\n\n"
 				"Player is flying: %d\n\n"
 				"Player is on ground: %d\n\n"
 				"Camera position: %f %f %f\n\n"
 				"Camera up: %f %f %f\n\n"
 				"Camera target: %f %f %f\n\n"
-				"Camera pos/target dist: %f\n\n",
-				player.position.x, player.position.y, player.position.z,
-				player.velocity.x, player.velocity.y, player.velocity.z,
+				"Camera pos/target dist: %f\n\n"
+				,
+				player.e.position.x, player.e.position.y, player.e.position.z,
+				player.e.velocity.x, player.e.velocity.y, player.e.velocity.z,
+				player_chunk_pos.x, player_chunk_pos.z,
 				player.input_vector.x, player.input_vector.y, player.input_vector.z,
 				player.is_flying,
 				player.is_on_ground,
@@ -181,12 +343,14 @@ int main(void) {
 				player.camera->target.x, player.camera->target.y, player.camera->target.z,
 				Vector3Distance(player.camera->position, player.camera->target)
 				);
-		DrawText(buf, 15, 15, 22, ORANGE);
-		// printf("v = %f %f %f\n", player.velocity.x, player.velocity.y, player.velocity.z);
+		DrawText(buf, 15, 50, 22, ORANGE);
+		// printf("v = %f %f %f\n", player.e.velocity.x, player.e.velocity.y, player.e.velocity.z);
 	
 		EndDrawing();
 	}
 
+	UnloadShader(chunk_shader);
+	world_unload_all_chunks();
 	player_destroy(&player);
 	CloseWindow();
 
