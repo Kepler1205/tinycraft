@@ -115,6 +115,10 @@ int main(void) {
 			.z = floor(player.e.position.z / WORLD_CHUNK_WIDTH),
 		};
 
+		/* // TEST
+		world_load_chunk((world_chunk_pos){0}); */
+
+
 		int rd = SETTINGS.render_distance;
 
 		for (int i = -rd + 1; i < rd; i++) {
@@ -127,6 +131,7 @@ int main(void) {
 				world_load_chunk(chunk_pos);
 			}
 		}
+
 
 		/* for (int i = -rd - 1; i < rd + 1; i++) {
 			for (int j = -rd - 1; j < rd + 1; j++) {
@@ -245,27 +250,6 @@ render:
 		// DrawGrid(32, 1);
 		DrawGrid(50, 16);
 		world_render_chunks(player.camera, chunk_shader);
-
-		// chunk borders BROKEN
-		int cb_dist = 5;
-		for (int i = cb_dist; i < cb_dist; i++) {
-			for (int j = cb_dist; j < cb_dist; j++) {
-
-				DrawCubeWiresV(
-						(Vector3){
-							.x = i * WORLD_CHUNK_WIDTH,
-							.y = 0.5f * WORLD_CHUNK_HEIGHT,
-							.z = j * WORLD_CHUNK_WIDTH,
-						},
-						(Vector3){
-							.x = WORLD_CHUNK_WIDTH,
-							.y = WORLD_CHUNK_HEIGHT,
-							.z = WORLD_CHUNK_WIDTH,
-						},
-						RED
-						);
-			}
-		}
 
 		EndMode3D();
 

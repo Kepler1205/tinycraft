@@ -5,6 +5,7 @@
 #include <raymath.h>
 
 #include "chunk.h"
+#include "global.h"
 #include "world.h"
 
 world_data WORLD = {0};
@@ -29,9 +30,9 @@ void world_init(world_data* wd) {
  */
 Vector3 get_block_real_pos(world_chunk_pos chunk_pos, int bx, int by, int bz) {
 	return (Vector3){
-		.x = bx + chunk_pos.x * WORLD_CHUNK_WIDTH,
-		.y = by,
-		.z = bz + chunk_pos.z * WORLD_CHUNK_WIDTH,
+		bx + 1 + chunk_pos.x * WORLD_CHUNK_WIDTH,
+		by,
+		bz + 1 + chunk_pos.z * WORLD_CHUNK_WIDTH,
 	};
 }
 
@@ -77,6 +78,56 @@ void world_unload_all_chunks(void) {
 	chunk_dict_delete_all(&WORLD.chunk_dict);
 }
 
+static void render_chunk_border_walls(world_chunk_pos pos) {
+
+	Color col = YELLOW;
+	float fposx = pos.x * WORLD_CHUNK_WIDTH;
+	float fposz = pos.z * WORLD_CHUNK_WIDTH;
+
+	// horizontal lines
+	for (unsigned int i = 0; i < WORLD_CHUNK_HEIGHT; i++) {
+		DrawLine3D(
+				(Vector3){fposx, i, fposz},
+				(Vector3){fposx, i, fposz + WORLD_CHUNK_WIDTH},
+				col);
+		DrawLine3D(
+				(Vector3){fposx, i, fposz},
+				(Vector3){fposx + WORLD_CHUNK_WIDTH, i, fposz},
+				col);
+		DrawLine3D(
+				(Vector3){fposx + WORLD_CHUNK_WIDTH, i, fposz + WORLD_CHUNK_WIDTH},
+				(Vector3){fposx, i, fposz + WORLD_CHUNK_WIDTH},
+				col);
+		DrawLine3D(
+				(Vector3){fposx + WORLD_CHUNK_WIDTH, i, fposz + WORLD_CHUNK_WIDTH},
+				(Vector3){fposx + WORLD_CHUNK_WIDTH, i, fposz},
+				col);
+	}
+
+	// printf("pos: %f %f %f\n", (float)(fposx + 1), (float)(WORLD_CHUNK_HEIGHT), (float)(fposz));
+
+	// vertical lines
+	for (unsigned int i = 0; i < WORLD_CHUNK_WIDTH; i++) {
+		DrawLine3D(
+				(Vector3){fposx + i, WORLD_CHUNK_HEIGHT, fposz},
+				(Vector3){fposx + i, 0, fposz},
+				col);
+		DrawLine3D(
+				(Vector3){fposx + i, WORLD_CHUNK_HEIGHT, fposz + WORLD_CHUNK_WIDTH},
+				(Vector3){fposx + i, 0, fposz + WORLD_CHUNK_WIDTH},
+				col);
+		DrawLine3D(
+				(Vector3){fposx, WORLD_CHUNK_HEIGHT, fposz + i},
+				(Vector3){fposx, 0, fposz + i},
+				col);
+		DrawLine3D(
+				(Vector3){fposx + WORLD_CHUNK_WIDTH, WORLD_CHUNK_HEIGHT, fposz + i},
+				(Vector3){fposx + WORLD_CHUNK_WIDTH, 0, fposz + i},
+				col);
+	}
+
+}
+
 void world_render_chunks(Camera3D* camera, Shader shader) {
 	if (camera == NULL) {
 		fprintf(stderr, "%s:%d Cannot render for NULL camera\n", __FILE__, __LINE__);
@@ -87,6 +138,30 @@ void world_render_chunks(Camera3D* camera, Shader shader) {
 		chunk_dict_entry* entry = WORLD.chunk_dict.entries[i];
 
 		while (entry != NULL) {
+			// toggle chunk borders
+			if (IsKeyPressed(KEY_F9)) {
+				SETTINGS.show_chunk_borders ^= 0x1;
+			}
+
+			if (SETTINGS.show_chunk_borders) {
+				world_chunk_pos pos = entry->key;
+
+				// draw chunk borders
+				DrawLine3D(
+						(Vector3){pos.x * WORLD_CHUNK_WIDTH, 0, pos.z * WORLD_CHUNK_WIDTH}, 
+						(Vector3){pos.x * WORLD_CHUNK_WIDTH,WORLD_CHUNK_HEIGHT, pos.z * WORLD_CHUNK_WIDTH}, 
+						RED);
+
+				if (
+						camera->position.x >= pos.x * WORLD_CHUNK_WIDTH &&
+						camera->position.x <  pos.x * WORLD_CHUNK_WIDTH + WORLD_CHUNK_WIDTH &&
+						camera->position.z >= pos.z * WORLD_CHUNK_WIDTH &&
+						camera->position.z <  pos.z * WORLD_CHUNK_WIDTH + WORLD_CHUNK_WIDTH
+				   )
+					render_chunk_border_walls(pos);
+			}
+
+			// render chunk
 			chunk_render_chunk(entry->key, entry->value, camera, shader);
 			entry = entry->next;
 		}
@@ -99,22 +174,22 @@ aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos) {
 	Vector3 b_max = block_pos;
 	(void)block_pos;
 	Vector3 b_min = {
-		.x = b_max.x - 1,
-		.y = b_max.y - 1,
-		.z = b_max.z - 1,
+		b_max.x - 1,
+		b_max.y - 1,
+		b_max.z - 1,
 	};
 
 	aabb_collision_result result = {0};
 
 	Vector3 e_min = {
-		.x = e->position.x - (e->size.x / 2),
-		.y = e->position.y,
-		.z = e->position.z - (e->size.z / 2),
+		e->position.x - (e->size.x / 2),
+		e->position.y,
+		e->position.z - (e->size.z / 2),
 	};
 	Vector3 e_max = {
-		.x = e->position.x + (e->size.x / 2),
-		.y = e->position.y + e->size.y,
-		.z = e->position.z + (e->size.z / 2),
+		e->position.x + (e->size.x / 2),
+		e->position.y + e->size.y,
+		e->position.z + (e->size.z / 2),
 	};
 
 	/* makes entities sink in the block by a small value
@@ -124,9 +199,9 @@ aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos) {
 	const float sink_value = 0.001;
 
 	Vector3 overlap_depth = {
-		.x = fminf(e_max.x, b_max.x) - fmaxf(e_min.x, b_min.x) - sink_value,
-		.y = fminf(e_max.y, b_max.y) - fmaxf(e_min.y, b_min.y) - sink_value,
-		.z = fminf(e_max.z, b_max.z) - fmaxf(e_min.z, b_min.z) - sink_value,
+		fminf(e_max.x, b_max.x) - fmaxf(e_min.x, b_min.x) - sink_value,
+		fminf(e_max.y, b_max.y) - fmaxf(e_min.y, b_min.y) - sink_value,
+		fminf(e_max.z, b_max.z) - fmaxf(e_min.z, b_min.z) - sink_value,
 	};
 
 	if ((overlap_depth.x > 0) && (overlap_depth.y > 0) && (overlap_depth.z > 0)) {
@@ -155,8 +230,7 @@ aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos) {
 		}
 
 		result.collision_depth = overlap_depth;
+	}
 
-return result;
-	} else
-		return result;
+	return result;
 }
