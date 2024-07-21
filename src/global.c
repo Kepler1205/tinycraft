@@ -11,8 +11,9 @@ void globals_init(void) {
 	};
 
 	SETTINGS = (settings){
-		.render_distance = 2,
+		.render_distance = 4,
 		.display_resolution = screen_resolution,
 		.gui_scale = screen_resolution.y / 100,
+		.show_chunk_borders = true,
 	};
 }

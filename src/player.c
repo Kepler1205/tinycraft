@@ -54,6 +54,7 @@ extern void player_movement(player* player) {
 	if (IsKeyPressed(KEY_THREE)) {
 		player->gamemode = MODE_SPECTATOR;
 		player->is_flying = 1;
+		player->is_on_ground = 0;
 		player->e.velocity = Vector3Zero();
 	}
 			
