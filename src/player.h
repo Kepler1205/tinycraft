@@ -34,18 +34,8 @@ typedef struct {
 	item inventory[9][4];
 } player;
 
-extern player player_init(void);
-extern void player_destroy(player* p);
+player player_init(void);
+void player_destroy(player* p);
 
 // called every frame
-extern void player_movement(player* player);
-extern void player_physics(player* player);
-extern void player_add_force(player* player, Vector3 force);
-
-// called once
-extern void player_add_impulse(player* player, Vector3 force);
-extern void player_add_position(player* player, Vector3 position_delta);
-extern void player_set_position(player* player, Vector3 position);
-
-void player_collide(player* player, Vector3 block_pos);
-void player_block_collision(player* player);
+void player_update(player* player);
