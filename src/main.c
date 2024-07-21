@@ -43,8 +43,6 @@ int main(void) {
 
 	SetWindowPosition(m_pos.x, m_pos.y);
 	SetWindowState(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
-	
-	bool cursor_status = 0;
 
 	// initializes settings and global variables, looking to deprecate;
 	// settings should be their own translation unit
@@ -55,8 +53,6 @@ int main(void) {
 	perlin_noise_init(WORLD.chunk_opts.seed);
 
 	player player = player_init();
-
-	player.gamemode = MODE_SURVIVAL; // default gamemode
 
 	// shader stuff
 	Shader chunk_shader = LoadShader("./shaders/chunk_vert.glsl", "./shaders/chunk_frag.glsl");
@@ -82,30 +78,6 @@ int main(void) {
 
 		ClearBackground(BLACK);
 
-		if (IsKeyPressed(KEY_ESCAPE)) {
-			switch (player.gamemode) {
-				case (MODE_MENU):
-				case (MODE_PAUSED):
-					player.gamemode = MODE_SURVIVAL;
-					break;
-				default:
-					player.gamemode = MODE_PAUSED;
-			}
-		}
-
-		if (IsKeyPressed(KEY_E)) {
-			switch (player.gamemode) {
-				case (MODE_MENU):
-				case (MODE_PAUSED):
-					player.gamemode = MODE_SURVIVAL;
-					break;
-				default:
-					player.gamemode = MODE_MENU;
-			}
-		}
-
-
-
 		// CHUNK GENERATION
 		world_chunk_pos player_chunk_pos = {
 			// use of floor() is required since truncation rounds
@@ -116,7 +88,6 @@ int main(void) {
 
 		/* // TEST
 		world_load_chunk((world_chunk_pos){0}); */
-
 
 		int rd = SETTINGS.render_distance;
 
@@ -131,7 +102,6 @@ int main(void) {
 			}
 		}
 
-
 		/* for (int i = -rd - 1; i < rd + 1; i++) {
 			for (int j = -rd - 1; j < rd + 1; j++) {
 				world_chunk_pos chunk_pos = {
@@ -143,45 +113,8 @@ int main(void) {
 			}
 		} */
 
+		player_update(&player);
 
-		// INPUT
-		if (player.gamemode == MODE_MENU || player.gamemode == MODE_PAUSED) {
-			if (!cursor_status) {
-				EnableCursor();
-				cursor_status = 1;
-			}
-
-			if (player.gamemode == MODE_MENU) {
-				player.input_vector = Vector3Zero();
-				player_physics(&player);
-			}
-
-		} else {
-			if (cursor_status) {
-				DisableCursor();
-				cursor_status = 0;
-			}
-
-			player_movement(&player);
-			player_physics(&player);
-
-			// COLLISION
-
-			if (player.gamemode == MODE_SPECTATOR)
-				goto render;
-			// very temporary much slow
-			// just checks every rendered block for collision
-			player.is_on_ground = 0;
-			player_block_collision(&player);
-
-			if (player.is_on_ground)
-				player.e.velocity.y = 0;
-
-
-
-		}
-
-render:
 		// RENDER
 		BeginDrawing();
 	

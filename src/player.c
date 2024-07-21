@@ -8,7 +8,7 @@
 
 #define DEFAULT_MOVEMENT_SPEED 5
 
-extern player player_init(void) {
+player player_init(void) {
 	Camera3D* cam = malloc(sizeof(Camera3D));
 
 	player p = {
@@ -23,6 +23,7 @@ extern player player_init(void) {
 		.hunger = 20,
 		.is_flying = 0,
 		.camera = cam,
+		.gamemode = MODE_SURVIVAL,
 	};
 
 	*cam = (Camera3D){
@@ -36,11 +37,57 @@ extern player player_init(void) {
 	return p;
 }
 
-extern void player_destroy(player* player) {
+void player_destroy(player* player) {
 	free(player->camera);
 }
 
-extern void player_movement(player* player) {
+static void player_set_position(player* player, Vector3 position) {
+	const Vector3 diff = Vector3Subtract(player->e.position, position);
+	player->e.position = Vector3Subtract(player->e.position, diff);
+	player->camera->position = Vector3Subtract(player->camera->position, diff);
+	player->camera->target = Vector3Subtract(player->camera->target, diff);
+}
+
+static void player_add_position(player* player, Vector3 position_delta) {
+	player_set_position(player, Vector3Add(player->e.position, position_delta));
+}
+
+// called per-frame to add a force vector
+static void player_add_force(player* player, Vector3 force) {
+	const float delta_t = GetFrameTime();
+	if (!Vector3Equals(force, Vector3Zero()))
+		player->e.velocity = Vector3Add(player->e.velocity, Vector3Scale(force, delta_t));
+}
+
+// called once to add an impulse (instantaeious force)
+static void player_add_impulse(player* player, Vector3 force) {
+	if (!Vector3Equals(force, Vector3Zero()))
+		player->e.velocity = Vector3Add(player->e.velocity, force);
+}
+
+static void player_input(player* player) {
+	if (IsKeyPressed(KEY_ESCAPE)) {
+		switch (player->gamemode) {
+			case (MODE_MENU):
+			case (MODE_PAUSED):
+				player->gamemode = MODE_SURVIVAL;
+				break;
+			default:
+				player->gamemode = MODE_PAUSED;
+		}
+	}
+
+	if (IsKeyPressed(KEY_E)) {
+		switch (player->gamemode) {
+			case (MODE_MENU):
+			case (MODE_PAUSED):
+				player->gamemode = MODE_SURVIVAL;
+				break;
+			default:
+				player->gamemode = MODE_MENU;
+		}
+	}
+
 	// DEBUG
 	if (IsKeyPressed(KEY_R)) {
 		player_set_position(player, Vector3Zero());
@@ -73,8 +120,9 @@ extern void player_movement(player* player) {
 						-2));
 		}
 	}
+}
 
-	// Player movement
+static void player_movement(player* player) {
 	Vector3 velocity_delta = {0};
 
 	float speed_multiplier = 1;
@@ -163,68 +211,7 @@ extern void player_movement(player* player) {
 	}
 }
 
-extern void player_physics(player* player) {
-	const float delta_t = GetFrameTime();
-
-	// Gravity
-	if (!(player->is_on_ground || player->is_flying || player->gamemode == MODE_SPECTATOR)) {
-		// const float g = -9.81;
-		const float g = -14;
-		const float terminal_velocity = -2000;
-		if (player->e.velocity.y > terminal_velocity)
-			player_add_force(player, (Vector3){.y = g});
-	} 
-
-	// apply velocity to position
-	player_add_position(player, 
-			Vector3Scale(
-				Vector3Add(
-					player->e.velocity,
-					player->input_vector
-					),
-			delta_t));
-}
-
-extern void player_set_position(player* player, Vector3 position) {
-	const Vector3 diff = Vector3Subtract(player->e.position, position);
-	player->e.position = Vector3Subtract(player->e.position, diff);
-	player->camera->position = Vector3Subtract(player->camera->position, diff);
-	player->camera->target = Vector3Subtract(player->camera->target, diff);
-}
-
-extern void player_add_position(player* player, Vector3 position_delta) {
-	player_set_position(player, Vector3Add(player->e.position, position_delta));
-}
-
-// called per-frame to add a force vector
-extern void player_add_force(player* player, Vector3 force) {
-	const float delta_t = GetFrameTime();
-	if (!Vector3Equals(force, Vector3Zero()))
-		player->e.velocity = Vector3Add(player->e.velocity, Vector3Scale(force, delta_t));
-}
-
-// called once to add an impulse (instantaeious force)
-extern void player_add_impulse(player* player, Vector3 force) {
-	if (!Vector3Equals(force, Vector3Zero()))
-		player->e.velocity = Vector3Add(player->e.velocity, force);
-}
-
-void player_collide(player* player, Vector3 block_pos) {
-	aabb_collision_result res = entity_block_collision(&player->e, block_pos);
-	if (res.collided) {
-		if (res.collision_depth.y != 0.0f) {
-			player->is_on_ground = 1;
-			// fixes bouncing on the ground
-			// player_add_position(&player, (Vector3){.y=res.collision_depth.y-0.001});
-		} else
-			player_add_position(player, res.collision_depth);
-	} 
-
-}
-
-#include <stdio.h>
-
-void player_block_collision(player* player) {
+static void player_block_collision(player* player) {
 	// chunk that the player is inside
 	world_chunk_pos player_chunk_pos = { 
 		floorf(player->e.position.x / 16.0f),
@@ -296,4 +283,66 @@ void player_block_collision(player* player) {
 			}
 		}}}
 	}}
+}
+
+static void player_physics(player* player) {
+	const float delta_t = GetFrameTime();
+
+	// apply velocity to position
+	player_add_position(player, 
+			Vector3Scale(
+				Vector3Add(
+					player->e.velocity,
+					player->input_vector
+					),
+			delta_t));
+
+	if (player->gamemode == MODE_SPECTATOR)
+		return;
+
+	// Gravity
+	if (!(player->is_on_ground || player->is_flying)) {
+		// const float g = -9.81;
+		const float g = -14;
+		const float terminal_velocity = -2000;
+		if (player->e.velocity.y > terminal_velocity)
+			player_add_force(player, (Vector3){.y = g});
+	} 
+	// Collision
+	player->is_on_ground = 0;
+	player_block_collision(player);
+
+	if (player->is_on_ground)
+		player->e.velocity.y = 0;
+}
+
+// update method for player
+void player_update(player* player) {
+	static bool is_cursor_enabled = 0;
+
+	// generic inputs (change gamemode camera mode etc.)
+	player_input(player);
+
+	if (player->gamemode == MODE_MENU || player->gamemode == MODE_PAUSED) {
+		if (!is_cursor_enabled) {
+			EnableCursor();
+			is_cursor_enabled = 1;
+		}
+
+		if (player->gamemode == MODE_MENU) {
+			player->input_vector = Vector3Zero();
+			player_physics(player);
+		}
+
+	} else {
+		if (is_cursor_enabled) {
+			DisableCursor();
+			is_cursor_enabled = 0;
+		}
+
+		// handle player input movement
+		player_movement(player);
+		// apply physics (gravity, velocity etc.)
+		player_physics(player);
+	}
 }
