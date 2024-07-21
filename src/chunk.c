@@ -260,27 +260,24 @@ chunk* chunk_generate_chunk(chunk_generation_options* opts, chunk_dictionary* ch
 	}
 
 	for (unsigned int x = 0; x < WORLD_CHUNK_WIDTH; x++) {
-		for (unsigned int y = 0; y < WORLD_CHUNK_HEIGHT; y++) {
-			for (unsigned int z = 0; z < WORLD_CHUNK_WIDTH; z++) {
+	for (unsigned int y = 0; y < WORLD_CHUNK_HEIGHT; y++) {
+	for (unsigned int z = 0; z < WORLD_CHUNK_WIDTH; z++) {
 
-				Vector3 block_pos = get_block_real_pos(pos, x, y, z);
-				float noise = chunk_perlin_noise(opts, block_pos.x, block_pos.z);
+		Vector3 block_pos = get_block_real_pos(pos, x, y, z);
+		float noise = chunk_perlin_noise(opts, block_pos.x, block_pos.z);
 
-				// truncate
-				unsigned int height = floorf(noise);
+		// truncate
+		unsigned int height = floorf(noise);
 
-				if (y == height) {
-					chunk->blocks[x][y][z].id = 1; // GRASS
-				} else if (y > height) {
-					chunk->blocks[x][y][z].id = 0; // AIR
-				} else {
-					chunk->blocks[x][y][z].id = 2; // STONE
-				}
-
-			}
+		if (y == height) {
+			chunk->blocks[x][y][z].id = 1; // GRASS
+		} else if (y > height) {
+			chunk->blocks[x][y][z].id = 0; // AIR
+		} else {
+			chunk->blocks[x][y][z].id = 2; // STONE
 		}
-	}
-	
+	}}}
+
 	// get adjacent chunk block id
 	block adjacent_blocks[4][WORLD_CHUNK_WIDTH][WORLD_CHUNK_HEIGHT];
 
@@ -297,56 +294,49 @@ chunk* chunk_generate_chunk(chunk_generation_options* opts, chunk_dictionary* ch
 	 * ------------
 	 *     1
 	 */
-
 	for (unsigned int i = 0; i < 4; i++) {
-		for (unsigned int x = 0; x < WORLD_CHUNK_WIDTH; x++) {
-			for (unsigned int y = 0; y < WORLD_CHUNK_HEIGHT; y++) {
+	for (unsigned int x = 0; x < WORLD_CHUNK_WIDTH; x++) {
+	for (unsigned int y = 0; y < WORLD_CHUNK_HEIGHT; y++) {
 
-				Vector3 block_pos;
+		Vector3 block_pos;
 
-				switch (i) {
-					case (0): // +z
-						block_pos = get_block_real_pos(pos, x, y, WORLD_CHUNK_WIDTH);
-						break;
-					case (1): // -z
-						block_pos = get_block_real_pos(pos, x, y, -1);
-						break;
-					case (2): // +x
-						block_pos = get_block_real_pos(pos, WORLD_CHUNK_WIDTH, y, x);
-						break;
-					case (3): // -x
-						block_pos = get_block_real_pos(pos, -1, y, x);
-						break;
-				}
-
-				float noise = chunk_perlin_noise(opts, block_pos.x, block_pos.z);
-				unsigned int height = floorf(noise);
-
-				if (y == height) {
-					adjacent_blocks[i][x][y].id = 1;
-				} else if (y > height) {
-					adjacent_blocks[i][x][y].id = 0;
-				} else {
-					adjacent_blocks[i][x][y].id = 2;
-				}
-				/* if (adjacent_blocks[i][x][y].id != 0) {
-					printf("adj: %d %d %d\n", i, x, y);
-				} */
-
-			}
+		switch (i) {
+			case (0): // +z
+				block_pos = get_block_real_pos(pos, x, y, WORLD_CHUNK_WIDTH);
+				break;
+			case (1): // -z
+				block_pos = get_block_real_pos(pos, x, y, -1);
+				break;
+			case (2): // +x
+				block_pos = get_block_real_pos(pos, WORLD_CHUNK_WIDTH, y, x);
+				break;
+			case (3): // -x
+				block_pos = get_block_real_pos(pos, -1, y, x);
+				break;
 		}
-	}	
+
+		float noise = chunk_perlin_noise(opts, block_pos.x, block_pos.z);
+		unsigned int height = floorf(noise);
+
+		if (y == height) {
+			adjacent_blocks[i][x][y].id = 1;
+		} else if (y > height) {
+			adjacent_blocks[i][x][y].id = 0;
+		} else {
+			adjacent_blocks[i][x][y].id = 2;
+		}
+	}}}
 
 	unsigned int face_count = 0;
 	Matrix* transforms = malloc(sizeof(Matrix) * 6 * (WORLD_CHUNK_WIDTH * WORLD_CHUNK_WIDTH * WORLD_CHUNK_HEIGHT)/2);
 
 	// generate instance data for chunk
 	for (unsigned int x = 0; x < WORLD_CHUNK_WIDTH; x++) {
-		for (unsigned int y = 0; y < WORLD_CHUNK_HEIGHT; y++) {
-			for (unsigned int z = 0; z < WORLD_CHUNK_WIDTH; z++) {
-				unsigned int block_id = chunk->blocks[x][y][z].id;
-				if (block_id == 0)
-					continue;
+	for (unsigned int y = 0; y < WORLD_CHUNK_HEIGHT; y++) {
+	for (unsigned int z = 0; z < WORLD_CHUNK_WIDTH; z++) {
+		unsigned int block_id = chunk->blocks[x][y][z].id;
+		if (block_id == 0)
+			continue;
 
 #define FACE_FRONT  (1 << 0) // +z
 #define FACE_BACK   (1 << 1) // -z
@@ -355,104 +345,94 @@ chunk* chunk_generate_chunk(chunk_generation_options* opts, chunk_dictionary* ch
 #define FACE_TOP    (1 << 4) // +y
 #define FACE_BOTTOM (1 << 5) // -y
 
-				unsigned char faces = 0;
+		unsigned char faces = 0;
 
-				switch (x) {
-					case (WORLD_CHUNK_WIDTH - 1):
-						faces |= adjacent_blocks[2][z][y].id == 0 ? FACE_LEFT   : 0;
-						faces |= chunk->blocks[x-1][y][z].id == 0 ? FACE_RIGHT  : 0;
-						break;
-					case (0):
-						faces |= adjacent_blocks[3][z][y].id == 0 ? FACE_RIGHT  : 0;
-						faces |= chunk->blocks[x+1][y][z].id == 0 ? FACE_LEFT   : 0;
-						break;
-					default:
-						faces |= chunk->blocks[x+1][y][z].id == 0 ? FACE_LEFT   : 0;
-						faces |= chunk->blocks[x-1][y][z].id == 0 ? FACE_RIGHT  : 0;
-				}
-
-				switch (y) {
-					case (WORLD_CHUNK_HEIGHT - 1):
-						faces |= chunk->blocks[x][y-1][z].id == 0 ? FACE_BOTTOM : 0;
-						break;
-					case (0):
-						faces |= chunk->blocks[x][y+1][z].id == 0 ? FACE_TOP    : 0;
-						break;
-					default:
-						faces |= chunk->blocks[x][y+1][z].id == 0 ? FACE_TOP    : 0;
-						faces |= chunk->blocks[x][y-1][z].id == 0 ? FACE_BOTTOM : 0;
-				}
-
-				switch (z) {
-					case (WORLD_CHUNK_WIDTH - 1):
-						faces |= adjacent_blocks[0][x][y].id == 0 ? FACE_FRONT  : 0;
-						faces |= chunk->blocks[x][y][z-1].id == 0 ? FACE_BACK   : 0;
-						break;
-					case (0):
-						faces |= adjacent_blocks[1][x][y].id == 0 ? FACE_BACK   : 0;
-						faces |= chunk->blocks[x][y][z+1].id == 0 ? FACE_FRONT  : 0;
-						break;
-					default:
-						faces |= chunk->blocks[x][y][z+1].id == 0 ? FACE_FRONT  : 0;
-						faces |= chunk->blocks[x][y][z-1].id == 0 ? FACE_BACK   : 0;
-				}
-
-				if (faces == 0)
-					continue;
-
-				// translate the top face to the cube faces
-				Matrix t, r, res;
-
-				if (faces & FACE_FRONT) {
-					t = MatrixTranslate(x + .5, y - .5, z + 1);
-					r = MatrixRotateX(PI/2);
-					res = MatrixMultiply(r, t);
-					memcpy(transforms + face_count++, &res, sizeof(Matrix));
-				}
-				
-				if (faces & FACE_BACK) {
-					t = MatrixTranslate(x + .5, y - .5, z);
-					r = MatrixRotateX(-PI/2);
-					res = MatrixMultiply(r, t);
-					memcpy(transforms + face_count++, &res, sizeof(Matrix));
-				}
-				
-				if (faces & FACE_LEFT) {
-					t = MatrixTranslate(x + 1, y - .5, z + .5);
-					r = MatrixRotateZ(-PI/2);
-					res = MatrixMultiply(r, t);
-					memcpy(transforms + face_count++, &res, sizeof(Matrix));
-				}
-
-				if (faces & FACE_RIGHT) {
-					t = MatrixTranslate(x, y - .5, z + .5);
-					r = MatrixRotateZ(PI/2);
-					res = MatrixMultiply(r, t);
-					memcpy(transforms + face_count++, &res, sizeof(Matrix));
-				}
-
-				if (faces & FACE_TOP) {
-					res = MatrixTranslate(x + .5, y, z + .5);
-					memcpy(transforms + face_count++, &res, sizeof(Matrix));
-				}
-
-				if (faces & FACE_BOTTOM) {
-					t = MatrixTranslate(x + .5, y - 1, z + .5);
-					r = MatrixRotateX(PI);
-					res = MatrixMultiply(r, t);
-					memcpy(transforms + face_count++, &res, sizeof(Matrix));
-				}
-
-			}
+		switch (x) {
+			case (WORLD_CHUNK_WIDTH - 1):
+				faces |= adjacent_blocks[2][z][y].id == 0 ? FACE_LEFT   : 0;
+				faces |= chunk->blocks[x-1][y][z].id == 0 ? FACE_RIGHT  : 0;
+				break;
+			case (0):
+				faces |= adjacent_blocks[3][z][y].id == 0 ? FACE_RIGHT  : 0;
+				faces |= chunk->blocks[x+1][y][z].id == 0 ? FACE_LEFT   : 0;
+				break;
+			default:
+				faces |= chunk->blocks[x+1][y][z].id == 0 ? FACE_LEFT   : 0;
+				faces |= chunk->blocks[x-1][y][z].id == 0 ? FACE_RIGHT  : 0;
 		}
-	}
 
-	float quad_verts[] = {
-		-0.5f, 0.0f,  0.5f,
-		  0.5, 0.0f,  0.5f,
-		-0.5f, 0.0f, -0.5f,
-		 0.5f, 0.0f, -0.5f
-	};
+		switch (y) {
+			case (WORLD_CHUNK_HEIGHT - 1):
+				faces |= chunk->blocks[x][y-1][z].id == 0 ? FACE_BOTTOM : 0;
+				break;
+			case (0):
+				faces |= chunk->blocks[x][y+1][z].id == 0 ? FACE_TOP    : 0;
+				break;
+			default:
+				faces |= chunk->blocks[x][y+1][z].id == 0 ? FACE_TOP    : 0;
+				faces |= chunk->blocks[x][y-1][z].id == 0 ? FACE_BOTTOM : 0;
+		}
+
+		switch (z) {
+			case (WORLD_CHUNK_WIDTH - 1):
+				faces |= adjacent_blocks[0][x][y].id == 0 ? FACE_FRONT  : 0;
+				faces |= chunk->blocks[x][y][z-1].id == 0 ? FACE_BACK   : 0;
+				break;
+			case (0):
+				faces |= adjacent_blocks[1][x][y].id == 0 ? FACE_BACK   : 0;
+				faces |= chunk->blocks[x][y][z+1].id == 0 ? FACE_FRONT  : 0;
+				break;
+			default:
+				faces |= chunk->blocks[x][y][z+1].id == 0 ? FACE_FRONT  : 0;
+				faces |= chunk->blocks[x][y][z-1].id == 0 ? FACE_BACK   : 0;
+		}
+
+		if (faces == 0)
+			continue;
+
+		// translate the top face to the cube faces
+		Matrix t, r, res;
+
+		if (faces & FACE_FRONT) {
+			t = MatrixTranslate(x + .5, y - .5, z + 1);
+			r = MatrixRotateX(PI/2);
+			res = MatrixMultiply(r, t);
+			memcpy(transforms + face_count++, &res, sizeof(Matrix));
+		}
+		
+		if (faces & FACE_BACK) {
+			t = MatrixTranslate(x + .5, y - .5, z);
+			r = MatrixRotateX(-PI/2);
+			res = MatrixMultiply(r, t);
+			memcpy(transforms + face_count++, &res, sizeof(Matrix));
+		}
+		
+		if (faces & FACE_LEFT) {
+			t = MatrixTranslate(x + 1, y - .5, z + .5);
+			r = MatrixRotateZ(-PI/2);
+			res = MatrixMultiply(r, t);
+			memcpy(transforms + face_count++, &res, sizeof(Matrix));
+		}
+
+		if (faces & FACE_RIGHT) {
+			t = MatrixTranslate(x, y - .5, z + .5);
+			r = MatrixRotateZ(PI/2);
+			res = MatrixMultiply(r, t);
+			memcpy(transforms + face_count++, &res, sizeof(Matrix));
+		}
+
+		if (faces & FACE_TOP) {
+			res = MatrixTranslate(x + .5, y, z + .5);
+			memcpy(transforms + face_count++, &res, sizeof(Matrix));
+		}
+
+		if (faces & FACE_BOTTOM) {
+			t = MatrixTranslate(x + .5, y - 1, z + .5);
+			r = MatrixRotateX(PI);
+			res = MatrixMultiply(r, t);
+			memcpy(transforms + face_count++, &res, sizeof(Matrix));
+		}
+	}}}
 
 	// shrink allocation to fit data
 	transforms = realloc(transforms, face_count * sizeof(Matrix));
@@ -460,14 +440,12 @@ chunk* chunk_generate_chunk(chunk_generation_options* opts, chunk_dictionary* ch
 	for (unsigned int i = 0; i < face_count; i++)
 		transforms[i] = MatrixMultiply(transforms[i], MatrixTranslate(pos.x * WORLD_CHUNK_WIDTH, 0, pos.z * WORLD_CHUNK_WIDTH));
 
-	float* verticies = malloc(sizeof(quad_verts));
-	memcpy(verticies, &quad_verts, sizeof(quad_verts));
-
 	chunk->face_count = face_count;
 	chunk->transforms = transforms;
 	chunk->face_mesh = GenMeshPlane(1,1,1,1);
 
 	chunk_dict_insert(chunk_dict, pos, chunk);
+
 	return chunk;
 }
 
@@ -532,18 +510,6 @@ static void create_frustum_planes(Matrix viewp_matrix, Vector4* fplanes) {
 
 	// normalise frustum planes
 	for (unsigned int i = 0; i < 6; i++) {
-/*
-		float magnitude = sqrt(
-				fplanes[i].x * fplanes[i].x +
-				fplanes[i].y * fplanes[i].y +
-				fplanes[i].z * fplanes[i].z
-				);
-
-		fplanes[i].x /= magnitude;
-		fplanes[i].y /= magnitude;
-		fplanes[i].z /= magnitude;
-		fplanes[i].w /= magnitude;
-*/
 		// Quaternions are Vector4s so this is acceptable
 		QuaternionNormalize(fplanes[i]);
 	}
