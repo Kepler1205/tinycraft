@@ -7,7 +7,6 @@
 #define RLIGHTS_IMPLEMENTATION
 #include <rlights.h>
 
-#include "menu.h"
 #include "player.h"
 #include "global.h"
 #include "world.h"
@@ -231,7 +230,7 @@ render:
 		// Draw menu
 		switch (player.gamemode) {
 			case (MODE_PAUSED):
-				menu_pause_draw();
+				// DRAW PAUSE MENU
 				break;
 			case (MODE_MENU):
 			default:
