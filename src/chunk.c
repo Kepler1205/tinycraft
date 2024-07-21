@@ -5,6 +5,7 @@
 #include <raymath.h>
 
 #include "chunk.h"
+#include "global.h"
 
 // CHUNK DICTIONARY
 static size_t chunk_dict_hash(world_chunk_pos key) {
@@ -58,7 +59,8 @@ void chunk_dict_delete_all(chunk_dictionary* chunk_dict) {
 			while (entry->next != NULL) {
 				chunk_dict_entry* next_entry = entry->next;
 
-
+				UnloadMesh(entry->value->face_mesh);
+				free(entry->value->transforms);
 				free(entry->value);
 				free(entry);
 
@@ -553,7 +555,10 @@ void chunk_render_chunk(world_chunk_pos pos, chunk* chunk, Camera3D* camera, Sha
 	// SetShaderValueMatrix(shader, shader.locs[SHADER_LOC_MATRIX_MVP], projection_matrix);
 
 	// draw chunks
-	Material mat = LoadMaterialDefault();
+
+	// do the equivilent of LoadMaterialDefault without heap allocation
+	Material mat = DEFAULT_MATERIAL;
+
 	mat.shader = shader;
 	mat.maps[MATERIAL_MAP_DIFFUSE].color = BLUE;
 	mat.maps[MATERIAL_MAP_NORMAL].value = .2f;
