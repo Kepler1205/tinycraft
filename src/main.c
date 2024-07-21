@@ -111,8 +111,8 @@ int main(void) {
 		world_chunk_pos player_chunk_pos = {
 			// use of floor() is required since truncation rounds
 			// in th opposite direction for negative numbers.
-			.x = floor(player.e.position.x / WORLD_CHUNK_WIDTH),
-			.z = floor(player.e.position.z / WORLD_CHUNK_WIDTH),
+			.x = floorf(player.e.position.x / WORLD_CHUNK_WIDTH),
+			.z = floorf(player.e.position.z / WORLD_CHUNK_WIDTH),
 		};
 
 		/* // TEST
@@ -173,53 +173,7 @@ int main(void) {
 			// very temporary much slow
 			// just checks every rendered block for collision
 			player.is_on_ground = 0;
-			int rd = SETTINGS.render_distance;
-			for (int ix = -rd; ix < rd; ix++) {
-				for (int jx = -rd; jx < rd; jx++) {
-
-					world_chunk_pos chunk_pos = (world_chunk_pos){ix + player_chunk_pos.x,jx + player_chunk_pos.z};
-					chunk* chunk = world_chunk_lookup(chunk_pos);
-
-					if (chunk == NULL) {
-						// printf("%s:%d lookup NULL chunk\n", __FILE__, __LINE__);
-						continue;
-					}
-
-
-					
-					for (unsigned int i = 0; i < WORLD_CHUNK_WIDTH; i++) {
-						for (unsigned int j = 0; j < WORLD_CHUNK_HEIGHT; j++) {
-							for (unsigned int k = 0; k < WORLD_CHUNK_WIDTH; k++) {
-								if (chunk->blocks[i][j][k].id != 0) {
-									Vector3 block_pos = get_block_real_pos(chunk_pos,i,j,k);
-
-/*
-									if (IsKeyPressedRepeat(MOUSE_BUTTON_LEFT)) {
-										for (float l = 0; l < 1; l += (0.4f/5.0f)) {
-											Vector3 lerp;
-											if (player.camera_mode == FIRST_PERSON) {
-												lerp = Vector3Lerp(
-														player.camera->position,
-														player.camera->target,
-														l);
-											}
-											if (lerp.x > block_pos.x && lerp.x < block_pos.x + 1 &&
-												lerp.y > block_pos.y && lerp.y < block_pos.y + 1 &&
-												lerp.z > block_pos.z && lerp.z < block_pos.z + 1) {
-												chunk->blocks[i][j][k].id = 0;
-											}
-										}
-									}
-*/
-
-									player_collide(&player, block_pos);
-								}
-							}
-						}
-					}
-				}
-
-			}
+			player_block_collision(&player);
 
 			if (player.is_on_ground)
 				player.e.velocity.y = 0;
