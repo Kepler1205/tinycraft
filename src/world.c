@@ -85,7 +85,7 @@ static void render_chunk_border_walls(world_chunk_pos pos) {
 	float fposz = pos.z * WORLD_CHUNK_WIDTH;
 
 	// horizontal lines
-	for (unsigned int i = 0; i < WORLD_CHUNK_HEIGHT; i++) {
+	for (unsigned int i = 0; i < WORLD_CHUNK_HEIGHT; i += 4) {
 		DrawLine3D(
 				(Vector3){fposx, i, fposz},
 				(Vector3){fposx, i, fposz + WORLD_CHUNK_WIDTH},
@@ -104,10 +104,8 @@ static void render_chunk_border_walls(world_chunk_pos pos) {
 				col);
 	}
 
-	// printf("pos: %f %f %f\n", (float)(fposx + 1), (float)(WORLD_CHUNK_HEIGHT), (float)(fposz));
-
 	// vertical lines
-	for (unsigned int i = 0; i < WORLD_CHUNK_WIDTH; i++) {
+	for (unsigned int i = 0; i < WORLD_CHUNK_WIDTH; i += 4) {
 		DrawLine3D(
 				(Vector3){fposx + i, WORLD_CHUNK_HEIGHT, fposz},
 				(Vector3){fposx + i, 0, fposz},
