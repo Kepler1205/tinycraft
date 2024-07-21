@@ -48,3 +48,4 @@ extern void player_add_position(player* player, Vector3 position_delta);
 extern void player_set_position(player* player, Vector3 position);
 
 void player_collide(player* player, Vector3 block_pos);
+void player_block_collision(player* player);
