@@ -3,6 +3,7 @@
 #include "global.h"
 
 settings SETTINGS = {0};
+Material DEFAULT_MATERIAL = {0};
 
 void globals_init(void) {
 	Vector2 screen_resolution = {
@@ -16,4 +17,6 @@ void globals_init(void) {
 		.gui_scale = screen_resolution.y / 100,
 		.show_chunk_borders = true,
 	};
+
+	DEFAULT_MATERIAL = LoadMaterialDefault();
 }

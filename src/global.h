@@ -10,6 +10,7 @@ typedef struct {
 } settings;
 
 extern settings SETTINGS;
+extern Material DEFAULT_MATERIAL;
 
 
 void globals_init(void);
