@@ -202,7 +202,7 @@ float perlin_noise_3D(float x, float y, float z) {
 				perlin_lerp(u, perlin_grad(ptable[AB + 1], x, y - 1, z - 1), perlin_grad(ptable[BB + 1], x - 1, y - 1, z - 1))));
 }
 
-float perlin_noise_2D(float x, float y) {
+inline float perlin_noise_2D(float x, float y) {
 	return perlin_noise_3D(x, y, 0.0f);
 }
 

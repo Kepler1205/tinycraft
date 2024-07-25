@@ -41,26 +41,26 @@ void player_destroy(player* player) {
 	free(player->camera);
 }
 
-static void player_set_position(player* player, Vector3 position) {
+static inline void player_set_position(player* player, Vector3 position) {
 	const Vector3 diff = Vector3Subtract(player->e.position, position);
 	player->e.position = Vector3Subtract(player->e.position, diff);
 	player->camera->position = Vector3Subtract(player->camera->position, diff);
 	player->camera->target = Vector3Subtract(player->camera->target, diff);
 }
 
-static void player_add_position(player* player, Vector3 position_delta) {
+static inline void player_add_position(player* player, Vector3 position_delta) {
 	player_set_position(player, Vector3Add(player->e.position, position_delta));
 }
 
 // called per-frame to add a force vector
-static void player_add_force(player* player, Vector3 force) {
+static inline void player_add_force(player* player, Vector3 force) {
 	const float delta_t = GetFrameTime();
 	if (!Vector3Equals(force, Vector3Zero()))
 		player->e.velocity = Vector3Add(player->e.velocity, Vector3Scale(force, delta_t));
 }
 
 // called once to add an impulse (instantaeious force)
-static void player_add_impulse(player* player, Vector3 force) {
+static inline void player_add_impulse(player* player, Vector3 force) {
 	if (!Vector3Equals(force, Vector3Zero()))
 		player->e.velocity = Vector3Add(player->e.velocity, force);
 }

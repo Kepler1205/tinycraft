@@ -28,7 +28,7 @@ void world_init(world_data* wd) {
 /* Get the real position of a block from chunk_pos and 
  * the offsets within that chunk.
  */
-Vector3 get_block_real_pos(world_chunk_pos chunk_pos, int bx, int by, int bz) {
+inline Vector3 get_block_real_pos(world_chunk_pos chunk_pos, int bx, int by, int bz) {
 	return (Vector3){
 		bx + 1 + chunk_pos.x * WORLD_CHUNK_WIDTH,
 		by,
@@ -36,7 +36,7 @@ Vector3 get_block_real_pos(world_chunk_pos chunk_pos, int bx, int by, int bz) {
 	};
 }
 
-block* world_get_block(world_chunk_pos chunk_pos, uint16_t bx, uint16_t by, uint16_t bz) {
+inline block* world_get_block(world_chunk_pos chunk_pos, uint16_t bx, uint16_t by, uint16_t bz) {
 	chunk* chunk = world_chunk_lookup(chunk_pos);
 
 	if (chunk == NULL)
@@ -48,7 +48,7 @@ block* world_get_block(world_chunk_pos chunk_pos, uint16_t bx, uint16_t by, uint
 /* checks world dictionary for a chunk in pos.
  * returns NULL if no chunk exists in dictionary
  */
-chunk* world_chunk_lookup(world_chunk_pos pos) {
+inline chunk* world_chunk_lookup(world_chunk_pos pos) {
 
 	chunk_dict_entry* res = chunk_dict_lookup(&WORLD.chunk_dict, pos);
 	if (res)
@@ -74,7 +74,7 @@ void world_unload_chunk(world_chunk_pos pos) {
 	chunk_dict_delete(&WORLD.chunk_dict, pos);
 }
 
-void world_unload_all_chunks(void) {
+inline void world_unload_all_chunks(void) {
 	chunk_dict_delete_all(&WORLD.chunk_dict);
 }
 
