@@ -1,15 +1,19 @@
+#include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <raylib.h>
 #include <raymath.h>
 #include <rcamera.h>
 
 #include "player.h"
+#include "world.h"
 
-#define DEFAULT_MOVEMENT_SPEED 5
+#define DEFAULT_MOVEMENT_SPEED 100.0f
+#define GROUND_FRICTION 15.0f
+#define AIR_FRICTION 0.5f
 
 player player_init(void) {
-	Camera3D* cam = malloc(sizeof(Camera3D));
 
 	player p = {
 		.e = (entity){
@@ -22,9 +26,15 @@ player player_init(void) {
 		.hp = 20,
 		.hunger = 20,
 		.is_flying = 0,
-		.camera = cam,
 		.gamemode = MODE_SURVIVAL,
 	};
+
+	Camera3D* cam = malloc(sizeof(Camera3D));
+
+	if (cam == NULL) {
+		fprintf(stderr, "ERROR: Failed to allocate memory for player.cam\n");
+		exit(1);
+	}
 
 	*cam = (Camera3D){
 		.position = {0},
@@ -33,6 +43,8 @@ player player_init(void) {
 		.projection = CAMERA_PERSPECTIVE,
 		.target = Vector3Add(p.e.position, (Vector3){.x = p.reach, 1.6f})
 	};
+
+	p.camera = cam;
 
 	return p;
 }
@@ -128,13 +140,13 @@ static void player_movement(player* player) {
 	float speed_multiplier = 1;
 
 	if (player->gamemode == MODE_SPECTATOR)
-		player->movement_speed = 20;
+		player->movement_speed = 100;
 	else
 		player->movement_speed = DEFAULT_MOVEMENT_SPEED;
 
 	Camera3D unrotated_cam = *player->camera;
 	unrotated_cam.target.y = unrotated_cam.position.y;
-
+/*
 	if (IsKeyDown(KEY_W))
 		velocity_delta = Vector3Add(velocity_delta, GetCameraForward(&unrotated_cam));
 	if (IsKeyDown(KEY_S))
@@ -175,10 +187,89 @@ static void player_movement(player* player) {
 	// Stops multiple inputs from increasing speed
 	velocity_delta = Vector3Normalize(velocity_delta);
 	velocity_delta = Vector3Scale(velocity_delta, player->movement_speed * speed_multiplier);
-
-	player->input_vector = velocity_delta;
+*/
 	// player_add_position(player, Vector3Scale(player->e.velocity, delta_t));
+
+
+	///////// TEST
+	// player->input_vector = velocity_delta;
+	/* velocity_delta = Vector3Zero();
+	if (IsKeyDown(KEY_W))
+		velocity_delta.x += 1;
+	if (IsKeyDown(KEY_S))
+		velocity_delta.x -= 1;
+	if (IsKeyDown(KEY_A))
+		velocity_delta.z -= 1;
+	if (IsKeyDown(KEY_D))
+		velocity_delta.z += 1;
+
+	if (player->is_flying) {
+		if (player->gamemode == MODE_SURVIVAL || (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE))
+			player->is_flying = 0;
+
+		if (IsKeyDown(KEY_SPACE))
+			velocity_delta.y += 1;
+		if (IsKeyDown(KEY_LEFT_SHIFT))
+			velocity_delta.y -= 1;
+
+	} else {
+		if (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE) {
+			player->is_flying = 1;
+			player->e.velocity = Vector3Zero();
+		}
+	}
+
+	GetCameraMatrix(unrotated_cam);
+	velocity_delta = Vector3Multiply(velocity_delta, GetCameraForward(&unrotated_cam));
+	velocity_delta = Vector3Scale(velocity_delta, player->movement_speed * speed_multiplier);
+
+	player->e.velocity = Vector3Add(player->e.velocity, velocity_delta); */
+
+	Vector3 acceleration_delta = {0};
+
+	if (IsKeyDown(KEY_W))
+		acceleration_delta = Vector3Add(acceleration_delta, GetCameraForward(&unrotated_cam));
+	if (IsKeyDown(KEY_S))
+		acceleration_delta = Vector3Add(acceleration_delta, Vector3Scale(GetCameraForward(&unrotated_cam), -1));
+	if (IsKeyDown(KEY_A))
+		acceleration_delta = Vector3Add(acceleration_delta, Vector3Scale(GetCameraRight(&unrotated_cam), -1));
+	if (IsKeyDown(KEY_D))
+		acceleration_delta = Vector3Add(acceleration_delta, GetCameraRight(&unrotated_cam));
+
+	if (player->is_flying) {
+		if (player->gamemode == MODE_SURVIVAL || (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE))
+			player->is_flying = 0;
+
+		if (IsKeyDown(KEY_SPACE))
+			acceleration_delta = Vector3Add(acceleration_delta, GetCameraUp(&unrotated_cam));
+		if (IsKeyDown(KEY_LEFT_SHIFT))
+			acceleration_delta = Vector3Add(acceleration_delta, Vector3Scale(GetCameraUp(&unrotated_cam), -1));
+	} else {
+		if (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE) {
+			player->is_flying = 1;
+			player->e.velocity = Vector3Zero();
+		}
+	}
+
+	// Jumping
+	if (player->is_on_ground) {
+		player->is_flying = 0;
+		if (IsKeyDown(KEY_SPACE)) {
+			player->is_on_ground = 0;
+			player_add_impulse(player, (Vector3){.y=12});
+		}
+	} else if (!player->is_flying)
+		speed_multiplier *= 0.1;
+
+	// Sprint
+	if (IsKeyDown(KEY_LEFT_CONTROL))
+		speed_multiplier *= 1.4;
 	
+	acceleration_delta = Vector3Normalize(acceleration_delta);
+	acceleration_delta = Vector3Scale(acceleration_delta, player->movement_speed * speed_multiplier);
+
+	// apply movement
+	player_add_force(player, acceleration_delta);
 
 	// Camera movement
 	const Vector2 mouse_delta = GetMouseDelta();
@@ -268,52 +359,120 @@ static void player_block_collision(player* player) {
 			EndMode3D(); */
 
 			Vector3 block_pos = get_block_real_pos(pos, bx, by, bz);
+
+			// TEST
+			BoundingBox box = {
+				block_pos,
+				(Vector3){
+					block_pos.x - 1,
+					block_pos.y - 1,
+					block_pos.z - 1,
+				},
+			};
+
+			aabb_collision_result collision = entity_block_collision_swept(player->e, box);
+
+			if (collision.collided) {
+				if (collision.normal.y > 0)
+					player->is_on_ground = 1;
+				// player_add_position(player, Vector3Scale(collision.normal, collision.collision_time));
+				if (smallest_collision.collision_time > collision.collision_time)
+					smallest_collision = collision;
+			}
+			
+
+
 			aabb_collision_result res = entity_block_collision(&player->e, block_pos);
 
-			if (chunk->blocks[bx][by][bz].id == 0)
-				continue;
+			if (res.collided) {
+				collision.collided = 1;
+				total_overlap = Vector3Add(total_overlap, res.collision_depth);
+			}
 
 			if (res.collided) {
+				// printf("collision_depth.y: %f\n", res.collision_depth.y);
 				if (res.collision_depth.y != 0.0f) {
 					player->is_on_ground = 1;
+					player->e.velocity.y = 0;
 					// fixes bouncing on the ground
-					// player_add_position(&player, (Vector3){.y=res.collision_depth.y-0.001});
-				} else
+					player_add_position(player, (Vector3){.y=res.collision_depth.y-0.001});
+				} else {
+					// all other collision
 					player_add_position(player, res.collision_depth);
+				}
 			}
+
+			/* if (res.collided) {
+				printf("collision_depth: %f %f %f\n", res.collision_depth.x, res.collision_depth.y, res.collision_depth.z);
+				// printf("old pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
+				// player_add_position(player, res.collision_depth);
+				// printf("new pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
+				total_overlap = Vector3Add(total_overlap, res.collision_depth);
+				if (res.collision_depth.y != 0 && player->e.velocity.y <= 0) {
+					player->is_on_ground = 1;
+					player->e.velocity.y = 0;
+				}
+
+				player_add_position(player, total_overlap);
+			} */
 		}}}
 	}}
+
+	if (smallest_collision.collided) {
+		// Vector3 positon_delta = Vector3Scale(smallest_collision.normal, smallest_collision.collision_time);
+		/* Vector3 positon_delta = Vector3Multiply(Vector3Scale(player->e.velocity, 1-smallest_collision.collision_time), smallest_collision.normal);
+
+		player->e.velocity = Vector3Multiply(player->e.velocity, positon_delta); */
+	}
+
+	// DEBUG
+	// printf("col pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
 }
 
 static void player_physics(player* player) {
 	const float delta_t = GetFrameTime();
-
 	// apply velocity to position
-	player_add_position(player, 
-			Vector3Scale(
-				Vector3Add(
-					player->e.velocity,
-					player->input_vector
-					),
-			delta_t));
+	player_add_position(player, Vector3Scale(player->e.velocity, delta_t));
+
+	// Friction
+	if (!Vector3Equals(player->e.velocity, Vector3Zero())) {
+		if (player->is_on_ground)
+			player_add_force(player, Vector3Scale(player->e.velocity, -GROUND_FRICTION));
+		else
+			player_add_force(player, Vector3Scale(player->e.velocity, -AIR_FRICTION));
+	}
+
+	if (FloatEquals(player->e.velocity.x, 0))
+		player->e.velocity.x = 0;
+	if (FloatEquals(player->e.velocity.y, 0))
+		player->e.velocity.y = 0;
+	if (FloatEquals(player->e.velocity.z, 0))
+		player->e.velocity.z = 0;
 
 	if (player->gamemode == MODE_SPECTATOR)
 		return;
 
 	// Gravity
-	if (!(player->is_on_ground || player->is_flying)) {
+	// if (!(player->is_on_ground || player->is_flying)) {
+	if (!player->is_flying) {
 		// const float g = -9.81;
-		const float g = -14;
-		const float terminal_velocity = -2000;
-		if (player->e.velocity.y > terminal_velocity)
+		const float g = -45;
+		/* const float terminal_velocity = -2000;
+		if (player->e.velocity.y > terminal_velocity) */
 			player_add_force(player, (Vector3){.y = g});
 	} 
+
 	// Collision
 	player->is_on_ground = 0;
 	player_block_collision(player);
 
-	if (player->is_on_ground)
+
+	// DEBUG
+	// printf("grav pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
+
+	/* if (player->is_on_ground) {
 		player->e.velocity.y = 0;
+	} */
 }
 
 // update method for player
@@ -330,7 +489,7 @@ void player_update(player* player) {
 		}
 
 		if (player->gamemode == MODE_MENU) {
-			player->input_vector = Vector3Zero();
+			// TODO prevent player movement in menu mode
 			player_physics(player);
 		}
 
