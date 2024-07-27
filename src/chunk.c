@@ -255,9 +255,9 @@ void print_matrix(Matrix m) {
 
 // unless you intend to re-generate the chunk, use world_load_chunk
 chunk* chunk_generate_chunk(chunk_generation_options* opts, chunk_dictionary* chunk_dict, world_chunk_pos pos) {
-	chunk* chunk = malloc(sizeof(*chunk));
+	chunk* const chunk = malloc(sizeof(*chunk));
 	if (chunk == NULL) {
-		fprintf(stderr, "Failed to allocate memory for chunk: %d, %d", pos.x, pos.z);
+		fprintf(stderr, "Failed to allocate memory for chunk. Chunk locations: %d, %d", pos.x, pos.z);
 		return NULL;
 	}
 
@@ -330,7 +330,21 @@ chunk* chunk_generate_chunk(chunk_generation_options* opts, chunk_dictionary* ch
 	}}}
 
 	unsigned int face_count = 0;
-	Matrix* transforms = malloc(sizeof(Matrix) * 6 * (WORLD_CHUNK_WIDTH * WORLD_CHUNK_WIDTH * WORLD_CHUNK_HEIGHT)/2);
+	
+	/* the divide by two is allowed here since if the chunk was filled entirely 
+	 * with blocks there would be no internal faces. The larges number of faces
+	 * would be blocks in a 3D checkerboard pattern, which would be half the
+	 * number of blocks.
+	 */
+	const size_t max_transforms_count = 6 * (WORLD_CHUNK_WIDTH * WORLD_CHUNK_WIDTH * WORLD_CHUNK_HEIGHT)/2;
+
+	Matrix* transforms = malloc(sizeof(Matrix) * max_transforms_count);
+
+	if (transforms == NULL) {
+		fprintf(stderr, "Failed to allocate memory for chunk transforms. Chunk location: %d, %d", pos.x, pos.z);
+		free(chunk);
+		return NULL;
+	}
 
 	// generate instance data for chunk
 	for (unsigned int x = 0; x < WORLD_CHUNK_WIDTH; x++) {

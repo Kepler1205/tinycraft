@@ -144,12 +144,6 @@ void world_render_chunks(Camera3D* camera, Shader shader) {
 			if (SETTINGS.show_chunk_borders) {
 				world_chunk_pos pos = entry->key;
 
-				// draw chunk borders
-				DrawLine3D(
-						(Vector3){pos.x * WORLD_CHUNK_WIDTH, 0, pos.z * WORLD_CHUNK_WIDTH}, 
-						(Vector3){pos.x * WORLD_CHUNK_WIDTH,WORLD_CHUNK_HEIGHT, pos.z * WORLD_CHUNK_WIDTH}, 
-						RED);
-
 				if (
 						camera->position.x >= pos.x * WORLD_CHUNK_WIDTH &&
 						camera->position.x <  pos.x * WORLD_CHUNK_WIDTH + WORLD_CHUNK_WIDTH &&
@@ -157,6 +151,13 @@ void world_render_chunks(Camera3D* camera, Shader shader) {
 						camera->position.z <  pos.z * WORLD_CHUNK_WIDTH + WORLD_CHUNK_WIDTH
 				   )
 					render_chunk_border_walls(pos);
+
+				// draw chunk borders
+				DrawLine3D(
+						(Vector3){pos.x * WORLD_CHUNK_WIDTH, 0, pos.z * WORLD_CHUNK_WIDTH},
+						(Vector3){pos.x * WORLD_CHUNK_WIDTH,WORLD_CHUNK_HEIGHT, pos.z * WORLD_CHUNK_WIDTH},
+						RED);
+
 			}
 
 			// render chunk
