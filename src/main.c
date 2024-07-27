@@ -194,7 +194,6 @@ int main(void) {
 				"player.e.position: %f %f %f\n\n"
 				"player.e.velocity: %f %f %f\n\n"
 				"player chunk pos: %d %d\n\n"
-				"Player inputvec: %f %f %f\n\n"
 				"Player is flying: %d\n\n"
 				"Player is on ground: %d\n\n"
 				"Camera position: %f %f %f\n\n"
@@ -205,7 +204,6 @@ int main(void) {
 				player.e.position.x, player.e.position.y, player.e.position.z,
 				player.e.velocity.x, player.e.velocity.y, player.e.velocity.z,
 				player_chunk_pos.x, player_chunk_pos.z,
-				player.input_vector.x, player.input_vector.y, player.input_vector.z,
 				player.is_flying,
 				player.is_on_ground,
 				player.camera->position.x, player.camera->position.y, player.camera->position.z,

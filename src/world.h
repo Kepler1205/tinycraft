@@ -11,6 +11,7 @@ typedef struct {
 	Vector3 position; // location at the center of the bottom face
 	Vector3 velocity;
 	Vector3 size;
+	float mass;
 } entity;
 
 typedef struct {

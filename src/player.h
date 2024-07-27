@@ -17,7 +17,6 @@ typedef enum {
 
 typedef struct {
 	entity e;
-	Vector3 input_vector; // velocity from player inputs
 	gamemode_type gamemode;
 	unsigned int hp;
 	unsigned int hunger;
