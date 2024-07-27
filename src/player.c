@@ -302,11 +302,19 @@ static void player_movement(player* player) {
 	}
 }
 
+#include <stdio.h>
 static void player_block_collision(player* player) {
 	// chunk that the player is inside
 	world_chunk_pos player_chunk_pos = { 
 		floorf(player->e.position.x / 16.0f),
 		floorf(player->e.position.z / 16.0f),
+	};
+	float delta_t = GetFrameTime();
+	Vector3 total_overlap = {0};
+	bool collision = 0;
+
+	aabb_collision_result smallest_collision = {
+		.collision_time = INFINITY
 	};
 
 	// check surrounding chunks for distance
@@ -342,6 +350,9 @@ static void player_block_collision(player* player) {
 					by < 0 || by > WORLD_CHUNK_HEIGHT - 1 ||
 					bz < 0 || bz > WORLD_CHUNK_WIDTH  - 1
 			   )
+				continue;
+
+			if (chunk->blocks[bx][by][bz].id == 0)
 				continue;
 
 			// DEBUG Show collision check boundry
