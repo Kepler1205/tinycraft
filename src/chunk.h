@@ -27,10 +27,6 @@ typedef struct {
 } chunk_vertex;
 
 typedef struct {
-	// vertex array object
-	// unsigned int vao;
-
-	unsigned int vao;
 	unsigned int face_count;
 	Mesh face_mesh;
 	Matrix* transforms;
