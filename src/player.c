@@ -7,6 +7,7 @@
 #include <rcamera.h>
 
 #include "player.h"
+#include "chunk.h"
 #include "world.h"
 
 #define DEFAULT_MOVEMENT_SPEED 100.0f
@@ -309,135 +310,132 @@ static void player_block_collision(player* player) {
 		floorf(player->e.position.x / 16.0f),
 		floorf(player->e.position.z / 16.0f),
 	};
+
+	chunk* player_chunk = world_chunk_lookup(player_chunk_pos);
+	
+	if (player_chunk == NULL) {
+		fprintf(stderr, "WARNING: Player is inside an unloded chunk\n");
+		return;
+	}
+
 	float delta_t = GetFrameTime();
-	Vector3 total_overlap = {0};
-	bool collision = 0;
 
 	aabb_collision_result smallest_collision = {
 		.collision_time = INFINITY
 	};
 
-	// check surrounding chunks for distance
-	for (int x = -1; x <= 1; x++) {
-	for (int z = -1; z <= 1; z++) {
-		world_chunk_pos pos = (world_chunk_pos){x + player_chunk_pos.x, z + player_chunk_pos.z};
-		chunk* chunk = world_chunk_lookup(pos);
+	// distance moved in one frame
+	int dist_x = truncf(player->e.velocity.x * delta_t);
+	int dist_y = truncf(player->e.velocity.y * delta_t);
+	int dist_z = truncf(player->e.velocity.z * delta_t);
 
-		// don't check unloaded chunks
-		if (chunk == NULL)
-			continue;
+	int player_x = ceilf(player->e.position.x);
+	int player_y = ceilf(player->e.position.y);
+	int player_z = ceilf(player->e.position.z);
 
-		// positions of blocks in chunk
-		int cx = floorf(player->e.position.x) - pos.x * WORLD_CHUNK_WIDTH;
-		int cy = ceilf(player->e.position.y);
-		int cz = floorf(player->e.position.z) - pos.z * WORLD_CHUNK_WIDTH;
+	int start_x = player_x;
+	int start_y = player_y;
+	int start_z = player_z;
+	
+	int end_x = player_x + dist_x;
+	int end_y = player_y + dist_y;
+	int end_z = player_z + dist_z;
 
-		// only check chunks that are close
-		if (cx >= WORLD_CHUNK_WIDTH + 2 || cz >= WORLD_CHUNK_WIDTH + 2)
-			continue;
-
-		for (int ix = -1; ix <= 1; ix++) {
-		for (int iy =  0; iy <= 2; iy++) {
-		for (int iz = -1; iz <= 1; iz++) {
-			int bx = cx + ix;
-			int by = cy + iy;
-			int bz = cz + iz;
-
-			// printf("bx: %d by: %d bz: %d\n", bx,by,bz);
-
-			if (
-					bx < 0 || bx > WORLD_CHUNK_WIDTH  - 1 ||
-					by < 0 || by > WORLD_CHUNK_HEIGHT - 1 ||
-					bz < 0 || bz > WORLD_CHUNK_WIDTH  - 1
-			   )
-				continue;
-
-			if (chunk->blocks[bx][by][bz].id == 0)
-				continue;
-
-			// DEBUG Show collision check boundry
-			/* BeginMode3D(*player->camera);
-			Vector3 b_pos = get_block_real_pos(pos, bx, by, bz);
-			b_pos.x -= .5;
-			b_pos.y -= .5;
-			b_pos.z -= .5;
-			DrawCubeV(b_pos, Vector3One(), (Color){.a = 50, .b = 240});
-			Vector3 c_pos = get_block_real_pos(pos, cx, cy, cz);
-			c_pos.x -= .5;
-			c_pos.y -= .5;
-			c_pos.z -= .5;
-			DrawCubeV(c_pos, Vector3One(), (Color){.a = 50, .r = 240});
-			EndMode3D(); */
-
-			Vector3 block_pos = get_block_real_pos(pos, bx, by, bz);
-
-			// TEST
-			BoundingBox box = {
-				block_pos,
-				(Vector3){
-					block_pos.x - 1,
-					block_pos.y - 1,
-					block_pos.z - 1,
-				},
-			};
-
-			aabb_collision_result collision = entity_block_collision_swept(player->e, box);
-
-			if (collision.collided) {
-				if (collision.normal.y > 0)
-					player->is_on_ground = 1;
-				// player_add_position(player, Vector3Scale(collision.normal, collision.collision_time));
-				if (smallest_collision.collision_time > collision.collision_time)
-					smallest_collision = collision;
-			}
-			
-
-
-			aabb_collision_result res = entity_block_collision(&player->e, block_pos);
-
-			if (res.collided) {
-				collision.collided = 1;
-				total_overlap = Vector3Add(total_overlap, res.collision_depth);
-			}
-
-			if (res.collided) {
-				// printf("collision_depth.y: %f\n", res.collision_depth.y);
-				if (res.collision_depth.y != 0.0f) {
-					player->is_on_ground = 1;
-					player->e.velocity.y = 0;
-					// fixes bouncing on the ground
-					player_add_position(player, (Vector3){.y=res.collision_depth.y-0.001});
-				} else {
-					// all other collision
-					player_add_position(player, res.collision_depth);
-				}
-			}
-
-			/* if (res.collided) {
-				printf("collision_depth: %f %f %f\n", res.collision_depth.x, res.collision_depth.y, res.collision_depth.z);
-				// printf("old pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
-				// player_add_position(player, res.collision_depth);
-				// printf("new pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
-				total_overlap = Vector3Add(total_overlap, res.collision_depth);
-				if (res.collision_depth.y != 0 && player->e.velocity.y <= 0) {
-					player->is_on_ground = 1;
-					player->e.velocity.y = 0;
-				}
-
-				player_add_position(player, total_overlap);
-			} */
-		}}}
-	}}
-
-	if (smallest_collision.collided) {
-		// Vector3 positon_delta = Vector3Scale(smallest_collision.normal, smallest_collision.collision_time);
-		/* Vector3 positon_delta = Vector3Multiply(Vector3Scale(player->e.velocity, 1-smallest_collision.collision_time), smallest_collision.normal);
-
-		player->e.velocity = Vector3Multiply(player->e.velocity, positon_delta); */
+	if (dist_x < 0) {
+		start_x = player_x + dist_x;
+		end_x = player_x;
 	}
 
-	// DEBUG
-	// printf("col pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
+	if (dist_y < 0) {
+		start_y = player_y + dist_y;
+		end_y = player_y;
+	}
+
+	if (dist_z < 0) {
+		start_z = player_z + dist_z;
+		end_z = player_z;
+	}
+
+	float padding = 1.0f;
+
+	end_x += ceilf(player->e.size.x + padding);
+	end_y += ceilf(player->e.size.y + padding);
+	end_z += ceilf(player->e.size.z + padding);
+
+	start_x -= ceilf(player->e.size.x + padding);
+	start_y -= ceilf(player->e.size.y + padding);
+	start_z -= ceilf(player->e.size.z + padding);
+
+	for (int x = start_x; x < end_x; x++) {
+	for (int y = start_y; y < end_y; y++) {
+	for (int z = start_z; z < end_z; z++) {
+
+		chunk* chunk = player_chunk;
+		world_chunk_pos chunk_pos;
+
+		// dont check collision outside of block range
+		if (y < 0 || y > WORLD_CHUNK_HEIGHT)
+			continue;
+
+		if (x - player_chunk_pos.x * WORLD_CHUNK_WIDTH > WORLD_CHUNK_WIDTH)
+			chunk_pos.x = player_chunk_pos.x + 1;
+		else if (x - player_chunk_pos.x * WORLD_CHUNK_WIDTH < 0)
+			chunk_pos.x = player_chunk_pos.x - 1;
+		else
+			chunk_pos.x = player_chunk_pos.x;
+
+		if (z - player_chunk_pos.z * WORLD_CHUNK_WIDTH > WORLD_CHUNK_WIDTH)
+			chunk_pos.z = player_chunk_pos.z + 1;
+		else if (z - player_chunk_pos.z * WORLD_CHUNK_WIDTH > 0)
+			chunk_pos.z = player_chunk_pos.z - 1;
+		else
+			chunk_pos.z = player_chunk_pos.z;
+
+		if (
+				chunk_pos.x != player_chunk_pos.x ||
+				chunk_pos.z != player_chunk_pos.z
+		   ) {
+
+			// check adjacent chunk
+			chunk = world_chunk_lookup(chunk_pos);
+
+			// dont check empty chunks for collision
+			if (chunk == NULL) {
+				fprintf(stderr, "WARNING: Player is entering an unloded chunk\n");
+				continue;
+			}
+		}
+
+		// adjust xyz to be relative to chunk
+		int cx = x % WORLD_CHUNK_WIDTH;
+		int cy = y;
+		int cz = z % WORLD_CHUNK_WIDTH;
+
+		// dont check air blocks
+		if (chunk->blocks[cx][cy][cz].id == 0)
+			continue;
+
+		Vector3 block_pos = get_block_real_pos(chunk_pos, cx, cy, cz);
+
+		BoundingBox box = {
+			.max = block_pos,
+			.min = (Vector3){
+				block_pos.x - 1,
+				block_pos.y - 1,
+				block_pos.z - 1,
+			},
+		};
+
+		aabb_collision_result collision = entity_block_collision_swept(player->e, box);
+
+		if (collision.collided && collision.collision_time < smallest_collision.collision_time)
+			smallest_collision = collision;
+
+	}}}
+
+	if (smallest_collision.collided) {
+		printf("\ncollision!t=%f\n", smallest_collision.collision_time);
+	}
 }
 
 static void player_physics(player* player) {
