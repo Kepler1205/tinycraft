@@ -13,7 +13,7 @@ typedef struct {
 	bool is_on_ground;
 } entity;
 
-// COLLISION FUNCTIONS
+// COLLISION
 
 /* Calculates collision for an entity and block.
  * returns a signed value for overlap depth so you can
@@ -28,5 +28,12 @@ RayCollision entity_aabb_swept(entity e, BoundingBox b);
  */
 void entity_block_collision(entity* e);
 
+// PHYSICS
 
+/* called per-frame to add a force vector
+ */
+void entity_add_force(entity* e, Vector3 force);
 
+/* called once to add an impulse (instantaneous force)
+ */
+void entity_add_impulse(entity* e, Vector3 force);
