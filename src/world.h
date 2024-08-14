@@ -81,4 +81,4 @@ void world_render_chunks(Camera3D* camera, Shader shader);
  * entity out of the block
  */
 aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos);
-aabb_collision_result entity_block_collision_swept(entity e, BoundingBox b);
+RayCollision entity_block_collision_swept(entity e, BoundingBox b);
