@@ -7,7 +7,7 @@
 #include "world.h"
 #include "entity.h"
 
-aabb_collision_result entity_aabb(entity* e, Vector3 block_pos) {
+bool entity_aabb(entity* e, Vector3 block_pos, Vector3* collision_depth) {
 	Vector3 b_max = block_pos;
 	(void)block_pos;
 	Vector3 b_min = {
@@ -15,8 +15,6 @@ aabb_collision_result entity_aabb(entity* e, Vector3 block_pos) {
 		b_max.y - 1,
 		b_max.z - 1,
 	};
-
-	aabb_collision_result result = {0};
 
 	Vector3 e_min = {
 		e->position.x - (e->size.x / 2),
@@ -35,35 +33,35 @@ aabb_collision_result entity_aabb(entity* e, Vector3 block_pos) {
 		fminf(e_max.z, b_max.z) - fmaxf(e_min.z, b_min.z),
 	};
 
-	if ((overlap_depth.x > 0) && (overlap_depth.y > 0) && (overlap_depth.z > 0)) {
-		/* collision found, now determine which face
-		 * has been collided with 
-		 */
-		result.collided = 1;
+	// if no collision detected
+	if (!((overlap_depth.x > 0) && (overlap_depth.y > 0) && (overlap_depth.z > 0)))
+		return false;
 
-		float smallest_overlap = fminf(overlap_depth.x, fminf(overlap_depth.y, overlap_depth.z));
+	/* collision found, now determine which face
+	 * has been collided with 
+	 */
+	float smallest_overlap = fminf(overlap_depth.x, fminf(overlap_depth.y, overlap_depth.z));
 
-		if (overlap_depth.x == smallest_overlap) {
-			overlap_depth.y = 0;
-			overlap_depth.z = 0;
-			if (e_max.x < b_max.x)
-				overlap_depth.x = -overlap_depth.x;
-		} else if (overlap_depth.y == smallest_overlap) {
-			overlap_depth.x = 0;
-			overlap_depth.z = 0;
-			if (e_max.y < b_max.y)
-				overlap_depth.y = -overlap_depth.y;
-		} else {
-			overlap_depth.x = 0;
-			overlap_depth.y = 0;
-			if (e_max.z < b_max.z)
-				overlap_depth.z = -overlap_depth.z;
-		}
-
-		result.collision_depth = overlap_depth;
+	if (overlap_depth.x == smallest_overlap) {
+		overlap_depth.y = 0;
+		overlap_depth.z = 0;
+		if (e_max.x < b_max.x)
+			overlap_depth.x = -overlap_depth.x;
+	} else if (overlap_depth.y == smallest_overlap) {
+		overlap_depth.x = 0;
+		overlap_depth.z = 0;
+		if (e_max.y < b_max.y)
+			overlap_depth.y = -overlap_depth.y;
+	} else {
+		overlap_depth.x = 0;
+		overlap_depth.y = 0;
+		if (e_max.z < b_max.z)
+			overlap_depth.z = -overlap_depth.z;
 	}
 
-	return result;
+	*collision_depth = overlap_depth;
+
+	return true;
 }
 
 /* Swept aabb collision detection
