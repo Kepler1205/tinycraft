@@ -13,24 +13,6 @@
 #include "chunk.h"
  
 int main(void) {
-
-	bool test = 0;
-
-	if (test) {
-		world_chunk_pos pos = {1, 0};
-		int x, y, z;
-		x=4;
-		y=50;
-		z=2;
-		Vector3 res = get_block_real_pos(pos, x, y, z);
-		printf("chunk: %d %d\noffset: %d %d %d\nresult: %f %f %f\n", 
-				pos.x, pos.z,
-				x, y, z,
-				res.x, res.y, res.z
-				);
-		return 0;
-	}
-
 	// Window opts
 	InitWindow(1920, 1080, "Tinycraft");
 	SetTargetFPS(256);
