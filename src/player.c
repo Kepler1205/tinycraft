@@ -7,6 +7,7 @@
 #include <rcamera.h>
 
 #include "player.h"
+#include "chunk.h"
 #include "world.h"
 
 #define DEFAULT_MOVEMENT_SPEED 100.0f
@@ -302,137 +303,187 @@ static void player_movement(player* player) {
 	}
 }
 
+#include <stdio.h>
 static void player_block_collision(player* player) {
-	// chunk that the player is inside
-	world_chunk_pos player_chunk_pos = { 
-		floorf(player->e.position.x / 16.0f),
-		floorf(player->e.position.z / 16.0f),
-	};
 
-	// check surrounding chunks for distance
-	for (int x = -1; x <= 1; x++) {
-	for (int z = -1; z <= 1; z++) {
-		world_chunk_pos pos = (world_chunk_pos){x + player_chunk_pos.x, z + player_chunk_pos.z};
-		chunk* chunk = world_chunk_lookup(pos);
+	// collision has to be checked 3 times
+	// once for each axis
+	for (unsigned int axis = 0; axis < 3; axis++) {
 
-		// don't check unloaded chunks
-		if (chunk == NULL)
-			continue;
+		// chunk that the player is inside
+		world_chunk_pos player_chunk_pos = { 
+			floorf(player->e.position.x / WORLD_CHUNK_WIDTH),
+			floorf(player->e.position.z / WORLD_CHUNK_WIDTH),
+		};
 
-		// positions of blocks in chunk
-		int cx = floorf(player->e.position.x) - pos.x * WORLD_CHUNK_WIDTH;
-		int cy = ceilf(player->e.position.y);
-		int cz = floorf(player->e.position.z) - pos.z * WORLD_CHUNK_WIDTH;
+		chunk* player_chunk = world_chunk_lookup(player_chunk_pos);
+		
+		if (player_chunk == NULL) {
+			fprintf(stderr, "WARNING: Player is inside an unloded chunk\n");
+			return;
+		}
 
-		// only check chunks that are close
-		if (cx >= WORLD_CHUNK_WIDTH + 2 || cz >= WORLD_CHUNK_WIDTH + 2)
-			continue;
+		float delta_t = GetFrameTime();
 
-		for (int ix = -1; ix <= 1; ix++) {
-		for (int iy =  0; iy <= 2; iy++) {
-		for (int iz = -1; iz <= 1; iz++) {
-			int bx = cx + ix;
-			int by = cy + iy;
-			int bz = cz + iz;
+		RayCollision nearest_collision = {
+			.distance = INFINITY,
+			.hit = 0,
+		};
+		// ------- broadphase calculation -------
+		Vector3 frame_travel = Vector3Scale(player->e.velocity, delta_t);
 
-			// printf("bx: %d by: %d bz: %d\n", bx,by,bz);
+		// broadphase box
+		BoundingBox bphase = {
+			.max = Vector3Add(player->e.position, frame_travel),
+			.min = player->e.position,
+		};
 
-			if (
-					bx < 0 || bx > WORLD_CHUNK_WIDTH  - 1 ||
-					by < 0 || by > WORLD_CHUNK_HEIGHT - 1 ||
-					bz < 0 || bz > WORLD_CHUNK_WIDTH  - 1
-			   )
+		const float padding = 0.0f;
+
+		// adjustments to include entire entity in
+		// current and next frame
+		if (player->e.velocity.x > 0) {
+			bphase.min.x -= (player->e.size.x + padding) * 0.5f;
+			bphase.max.x += (player->e.size.x + padding) * 0.5f;
+		} else {
+			bphase.min.x += (player->e.size.x + padding) * 0.5f;
+			bphase.max.x -= (player->e.size.x + padding) * 0.5f;
+		}
+
+		if (player->e.velocity.y > 0) {
+			bphase.max.y += (player->e.size.y + padding);
+		} else {
+			bphase.min.y += (player->e.size.y + padding);
+		}
+
+		if (player->e.velocity.z > 0) {
+			bphase.min.z -= (player->e.size.z + padding) * 0.5f;
+			bphase.max.z += (player->e.size.z + padding) * 0.5f;
+		} else {
+			bphase.min.z += (player->e.size.z + padding) * 0.5f;
+			bphase.max.z -= (player->e.size.z + padding) * 0.5f;
+		}
+
+		int start_x, start_y, start_z;
+		int end_x, end_y, end_z;
+
+		if (bphase.min.x > bphase.max.x) {
+			start_x = floorf(bphase.max.x);
+			end_x = ceilf(bphase.min.x);
+		} else {
+			start_x = floorf(bphase.min.x);
+			end_x = ceilf(bphase.max.x); 
+		}
+
+		if (bphase.min.y > bphase.max.y) {
+			start_y = floorf(bphase.max.y);
+			end_y = ceilf(bphase.min.y);
+		} else {
+			start_y = floorf(bphase.min.y);
+			end_y = ceilf(bphase.max.y); 
+		}
+
+		if (bphase.min.z > bphase.max.z) {
+			start_z = floorf(bphase.max.z);
+			end_z = ceilf(bphase.min.z);
+		} else {
+			start_z = floorf(bphase.min.z);
+			end_z = ceilf(bphase.max.z); 
+		}
+
+		printf("bphase.max %f %f %f\n", bphase.max.x, bphase.max.y, bphase.max.z);
+		printf("bphase.min %f %f %f\n", bphase.min.x, bphase.min.y, bphase.min.z);
+		
+		printf("start %d %d %d\n", start_x, start_y, start_z);
+		printf("end %d %d %d\n", end_x, end_y, end_z);
+		printf("\n");
+
+		for (int x = start_x; x < end_x; x++) {
+		for (int y = start_y; y < end_y; y++) {
+		for (int z = start_z; z < end_z; z++) {
+
+			chunk* chunk = player_chunk;
+			world_chunk_pos chunk_pos;
+
+			// dont check collision outside of block range
+			if (y < 0 || y > WORLD_CHUNK_HEIGHT)
 				continue;
 
-			// DEBUG Show collision check boundry
-			/* BeginMode3D(*player->camera);
-			Vector3 b_pos = get_block_real_pos(pos, bx, by, bz);
-			b_pos.x -= .5;
-			b_pos.y -= .5;
-			b_pos.z -= .5;
-			DrawCubeV(b_pos, Vector3One(), (Color){.a = 50, .b = 240});
-			Vector3 c_pos = get_block_real_pos(pos, cx, cy, cz);
-			c_pos.x -= .5;
-			c_pos.y -= .5;
-			c_pos.z -= .5;
-			DrawCubeV(c_pos, Vector3One(), (Color){.a = 50, .r = 240});
-			EndMode3D(); */
+			if (x - player_chunk_pos.x * WORLD_CHUNK_WIDTH >= WORLD_CHUNK_WIDTH)
+				chunk_pos.x = player_chunk_pos.x + 1;
+			else if (x - player_chunk_pos.x * WORLD_CHUNK_WIDTH < 0)
+				chunk_pos.x = player_chunk_pos.x - 1;
+			else
+				chunk_pos.x = player_chunk_pos.x;
 
-			Vector3 block_pos = get_block_real_pos(pos, bx, by, bz);
+			if (z - player_chunk_pos.z * WORLD_CHUNK_WIDTH >= WORLD_CHUNK_WIDTH)
+				chunk_pos.z = player_chunk_pos.z + 1;
+			else if (z - player_chunk_pos.z * WORLD_CHUNK_WIDTH < 0)
+				chunk_pos.z = player_chunk_pos.z - 1;
+			else
+				chunk_pos.z = player_chunk_pos.z;
 
-			// TEST
+			if (
+					chunk_pos.x != player_chunk_pos.x ||
+					chunk_pos.z != player_chunk_pos.z
+			   ) {
+
+				// check adjacent chunk
+				chunk = world_chunk_lookup(chunk_pos);
+
+				// dont check empty chunks for collision
+				if (chunk == NULL) {
+					fprintf(stderr, "WARNING: Player is entering an unloded chunk\n");
+					continue;
+				}
+			}
+
+			// adjust xyz to be relative to chunk
+			// done this way due to how % handles negative numbers
+			// this is otherwise the same as `x % WORLD_CHUNK_WIDTH`
+			int cx = ((x % WORLD_CHUNK_WIDTH) + WORLD_CHUNK_WIDTH) % WORLD_CHUNK_WIDTH;
+			int cy = y;
+			int cz = ((z % WORLD_CHUNK_WIDTH) + WORLD_CHUNK_WIDTH) % WORLD_CHUNK_WIDTH;
+
+			Vector3 block_pos = get_block_real_pos(chunk_pos, cx, cy, cz);
+
+			// dont check air blocks
+			if (chunk->blocks[cx][cy][cz].id == 0)
+				continue;
+
 			BoundingBox box = {
-				block_pos,
-				(Vector3){
+				.max = block_pos,
+				.min = (Vector3){
 					block_pos.x - 1,
 					block_pos.y - 1,
 					block_pos.z - 1,
 				},
 			};
 
-			aabb_collision_result collision = entity_block_collision_swept(player->e, box);
+			RayCollision collision = entity_block_collision_swept(player->e, box);
 
-			if (collision.collided) {
-				if (collision.normal.y > 0)
-					player->is_on_ground = 1;
-				// player_add_position(player, Vector3Scale(collision.normal, collision.collision_time));
-				if (smallest_collision.collision_time > collision.collision_time)
-					smallest_collision = collision;
-			}
-			
-
-
-			aabb_collision_result res = entity_block_collision(&player->e, block_pos);
-
-			if (res.collided) {
-				collision.collided = 1;
-				total_overlap = Vector3Add(total_overlap, res.collision_depth);
-			}
-
-			if (res.collided) {
-				// printf("collision_depth.y: %f\n", res.collision_depth.y);
-				if (res.collision_depth.y != 0.0f) {
-					player->is_on_ground = 1;
-					player->e.velocity.y = 0;
-					// fixes bouncing on the ground
-					player_add_position(player, (Vector3){.y=res.collision_depth.y-0.001});
-				} else {
-					// all other collision
-					player_add_position(player, res.collision_depth);
-				}
-			}
-
-			/* if (res.collided) {
-				printf("collision_depth: %f %f %f\n", res.collision_depth.x, res.collision_depth.y, res.collision_depth.z);
-				// printf("old pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
-				// player_add_position(player, res.collision_depth);
-				// printf("new pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
-				total_overlap = Vector3Add(total_overlap, res.collision_depth);
-				if (res.collision_depth.y != 0 && player->e.velocity.y <= 0) {
-					player->is_on_ground = 1;
-					player->e.velocity.y = 0;
-				}
-
-				player_add_position(player, total_overlap);
-			} */
+			if (collision.hit && collision.distance < nearest_collision.distance)
+				nearest_collision = collision;
 		}}}
-	}}
 
-	if (smallest_collision.collided) {
-		// Vector3 positon_delta = Vector3Scale(smallest_collision.normal, smallest_collision.collision_time);
-		/* Vector3 positon_delta = Vector3Multiply(Vector3Scale(player->e.velocity, 1-smallest_collision.collision_time), smallest_collision.normal);
+		// collision response
+		if (nearest_collision.hit && nearest_collision.distance <= Vector3Length(player->e.velocity) * delta_t) {
+			// slide
+			Vector3 norm = nearest_collision.normal;
+			norm.x = norm.x == 0;
+			norm.y = norm.y == 0;
+			norm.z = norm.z == 0;
 
-		player->e.velocity = Vector3Multiply(player->e.velocity, positon_delta); */
+			player->e.velocity = Vector3Multiply(player->e.velocity, norm);
+
+			if (nearest_collision.normal.y == 1)
+				player->is_on_ground = 1;
+		}
 	}
-
-	// DEBUG
-	// printf("col pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
 }
 
 static void player_physics(player* player) {
 	const float delta_t = GetFrameTime();
-	// apply velocity to position
-	player_add_position(player, Vector3Scale(player->e.velocity, delta_t));
 
 	// Friction
 	if (!Vector3Equals(player->e.velocity, Vector3Zero())) {
@@ -449,30 +500,24 @@ static void player_physics(player* player) {
 	if (FloatEquals(player->e.velocity.z, 0))
 		player->e.velocity.z = 0;
 
-	if (player->gamemode == MODE_SPECTATOR)
-		return;
+	if (player->gamemode != MODE_SPECTATOR) {
+		// Gravity
+		// if (!(player->is_on_ground || player->is_flying)) {
+		if (!player->is_flying) {
+			// const float g = -9.81;
+			const float g = -45;
+			/* const float terminal_velocity = -2000;
+			if (player->e.velocity.y > terminal_velocity) */
+				player_add_force(player, (Vector3){.y = g});
+		} 
 
-	// Gravity
-	// if (!(player->is_on_ground || player->is_flying)) {
-	if (!player->is_flying) {
-		// const float g = -9.81;
-		const float g = -45;
-		/* const float terminal_velocity = -2000;
-		if (player->e.velocity.y > terminal_velocity) */
-			player_add_force(player, (Vector3){.y = g});
-	} 
+		// Collision
+		player->is_on_ground = 0;
+		player_block_collision(player);
+	}
 
-	// Collision
-	player->is_on_ground = 0;
-	player_block_collision(player);
-
-
-	// DEBUG
-	// printf("grav pos: %f %f %f\n", player->e.position.x, player->e.position.y, player->e.position.z);
-
-	/* if (player->is_on_ground) {
-		player->e.velocity.y = 0;
-	} */
+	// apply velocity to position, MUST BE LAST
+	player_add_position(player, Vector3Scale(player->e.velocity, delta_t));
 }
 
 // update method for player
