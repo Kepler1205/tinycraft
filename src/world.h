@@ -15,13 +15,6 @@ typedef struct {
  */
 extern world_data WORLD;
 
-typedef struct {
-	Vector3 collision_depth;
-	bool collided;
-	float collision_time;
-	Vector3 normal;
-} aabb_collision_result;
-
 /* Initializes WORLD using wd. 
  * If wd is NULL, the default values are used.
  * This must be called before any chunk

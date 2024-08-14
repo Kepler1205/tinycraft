@@ -20,7 +20,7 @@ typedef struct {
  * just do e.position + result.overlap_depth to move the 
  * entity out of the block
  */
-aabb_collision_result entity_aabb(entity* e, Vector3 block_pos);
+bool entity_aabb(entity* e, Vector3 block_pos, Vector3* collision_depth);
 
 RayCollision entity_aabb_swept(entity e, BoundingBox b);
 
