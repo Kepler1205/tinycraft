@@ -84,17 +84,6 @@ int main(void) {
 			}
 		}
 
-		/* for (int i = -rd - 1; i < rd + 1; i++) {
-			for (int j = -rd - 1; j < rd + 1; j++) {
-				world_chunk_pos chunk_pos = {
-					.x = i + player_chunk_pos.x + 1,
-					.z = j + player_chunk_pos.z + 1,
-				};
-
-				world_unload_chunk(chunk_pos);
-			}
-		} */
-
 		player_update(&player);
 
 		// RENDER
@@ -194,7 +183,6 @@ int main(void) {
 				Vector3Distance(player.camera->position, player.camera->target)
 				);
 		DrawText(buf, 15, 50, 22, ORANGE);
-		// printf("v = %f %f %f\n", player.e.velocity.x, player.e.velocity.y, player.e.velocity.z);
 	
 		EndDrawing();
 	}

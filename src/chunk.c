@@ -228,7 +228,6 @@ static float chunk_perlin_noise(chunk_generation_options* opts, float x, float z
 				value = value < -1.0f ? -1.0f : value;
 
 				// normalise for positive numbers
-				// float noise_normalized = (noise_val / (max_val * 2)) + 1;
 				const float max_val = 10;
 				const float min_val = 5;
 				return min_val + (value + 1.0f) * 0.5f * max_val;

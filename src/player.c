@@ -147,84 +147,6 @@ static void player_movement(player* player) {
 
 	Camera3D unrotated_cam = *player->camera;
 	unrotated_cam.target.y = unrotated_cam.position.y;
-/*
-	if (IsKeyDown(KEY_W))
-		velocity_delta = Vector3Add(velocity_delta, GetCameraForward(&unrotated_cam));
-	if (IsKeyDown(KEY_S))
-		velocity_delta = Vector3Add(velocity_delta, Vector3Scale(GetCameraForward(&unrotated_cam), -1));
-	if (IsKeyDown(KEY_A))
-		velocity_delta = Vector3Add(velocity_delta, Vector3Scale(GetCameraRight(&unrotated_cam), -1));
-	if (IsKeyDown(KEY_D))
-		velocity_delta = Vector3Add(velocity_delta, GetCameraRight(&unrotated_cam));
-
-	if (player->is_flying) {
-		if (player->gamemode == MODE_SURVIVAL || (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE))
-			player->is_flying = 0;
-		if (IsKeyDown(KEY_SPACE))
-			velocity_delta = Vector3Add(velocity_delta, GetCameraUp(&unrotated_cam));
-		if (IsKeyDown(KEY_LEFT_SHIFT))
-			velocity_delta = Vector3Add(velocity_delta, Vector3Scale(GetCameraUp(&unrotated_cam), -1));
-	} else {
-		if (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE) {
-			player->is_flying = 1;
-			player->e.velocity = Vector3Zero();
-		}
-	}
-
-	// Jumping
-	if (player->is_on_ground) {
-		player->is_flying = 0;
-		if (IsKeyDown(KEY_SPACE)) {
-			player->is_on_ground = 0;
-			player_add_impulse(player, (Vector3){.y=6});
-		}
-	} else if (!player->is_flying)
-		speed_multiplier *= 0.7;
-
-	// Sprint
-	if (IsKeyDown(KEY_LEFT_CONTROL))
-		speed_multiplier *= 1.4;
-
-	// Stops multiple inputs from increasing speed
-	velocity_delta = Vector3Normalize(velocity_delta);
-	velocity_delta = Vector3Scale(velocity_delta, player->movement_speed * speed_multiplier);
-*/
-	// player_add_position(player, Vector3Scale(player->e.velocity, delta_t));
-
-
-	///////// TEST
-	// player->input_vector = velocity_delta;
-	/* velocity_delta = Vector3Zero();
-	if (IsKeyDown(KEY_W))
-		velocity_delta.x += 1;
-	if (IsKeyDown(KEY_S))
-		velocity_delta.x -= 1;
-	if (IsKeyDown(KEY_A))
-		velocity_delta.z -= 1;
-	if (IsKeyDown(KEY_D))
-		velocity_delta.z += 1;
-
-	if (player->is_flying) {
-		if (player->gamemode == MODE_SURVIVAL || (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE))
-			player->is_flying = 0;
-
-		if (IsKeyDown(KEY_SPACE))
-			velocity_delta.y += 1;
-		if (IsKeyDown(KEY_LEFT_SHIFT))
-			velocity_delta.y -= 1;
-
-	} else {
-		if (IsKeyPressed(KEY_F) && player->gamemode == MODE_CREATIVE) {
-			player->is_flying = 1;
-			player->e.velocity = Vector3Zero();
-		}
-	}
-
-	GetCameraMatrix(unrotated_cam);
-	velocity_delta = Vector3Multiply(velocity_delta, GetCameraForward(&unrotated_cam));
-	velocity_delta = Vector3Scale(velocity_delta, player->movement_speed * speed_multiplier);
-
-	player->e.velocity = Vector3Add(player->e.velocity, velocity_delta); */
 
 	Vector3 acceleration_delta = {0};
 
@@ -502,13 +424,10 @@ static void player_physics(player* player) {
 
 	if (player->gamemode != MODE_SPECTATOR) {
 		// Gravity
-		// if (!(player->is_on_ground || player->is_flying)) {
 		if (!player->is_flying) {
 			// const float g = -9.81;
 			const float g = -45;
-			/* const float terminal_velocity = -2000;
-			if (player->e.velocity.y > terminal_velocity) */
-				player_add_force(player, (Vector3){.y = g});
+			player_add_force(player, (Vector3){.y = g});
 		} 
 
 		// Collision
