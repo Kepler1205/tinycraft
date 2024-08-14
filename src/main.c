@@ -13,13 +13,6 @@
 #include "chunk.h"
  
 int main(void) {
-
-	bool test = 0;
-
-	if (test) {
-		return 0;
-	}
-
 	// Window opts
 	InitWindow(1920, 1080, "Tinycraft");
 	SetTargetFPS(256);

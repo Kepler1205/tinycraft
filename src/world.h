@@ -27,6 +27,8 @@ extern world_data WORLD;
 typedef struct {
 	Vector3 collision_depth;
 	bool collided;
+	float collision_time;
+	Vector3 normal;
 } aabb_collision_result;
 
 /* Initializes WORLD using wd. 
@@ -79,3 +81,4 @@ void world_render_chunks(Camera3D* camera, Shader shader);
  * entity out of the block
  */
 aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos);
+RayCollision entity_block_collision_swept(entity e, BoundingBox b);

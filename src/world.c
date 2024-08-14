@@ -191,16 +191,10 @@ aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos) {
 		e->position.z + (e->size.z / 2),
 	};
 
-	/* makes entities sink in the block by a small value
-	 * this fixes entities alternating between
-	 * colliding and not colliding every frame
-	 */
-	const float sink_value = 0.001;
-
 	Vector3 overlap_depth = {
-		fminf(e_max.x, b_max.x) - fmaxf(e_min.x, b_min.x) - sink_value,
-		fminf(e_max.y, b_max.y) - fmaxf(e_min.y, b_min.y) - sink_value,
-		fminf(e_max.z, b_max.z) - fmaxf(e_min.z, b_min.z) - sink_value,
+		fminf(e_max.x, b_max.x) - fmaxf(e_min.x, b_min.x),
+		fminf(e_max.y, b_max.y) - fmaxf(e_min.y, b_min.y),
+		fminf(e_max.z, b_max.z) - fmaxf(e_min.z, b_min.z),
 	};
 
 	if ((overlap_depth.x > 0) && (overlap_depth.y > 0) && (overlap_depth.z > 0)) {
@@ -232,4 +226,28 @@ aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos) {
 	}
 
 	return result;
+}
+
+/* swept AABB collision
+ *
+ * https://gamedev.net/tutorials/programming/general-and-gameplay-programming/swept-aabb-collision-detection-and-response-r3084/
+ */
+RayCollision entity_block_collision_swept(entity e, BoundingBox b) {
+	// add entity size to box size
+	b.max.x += e.size.x * 0.5f;
+	b.max.y += e.size.y * 0.5f;
+	b.max.z += e.size.z * 0.5f;
+
+	b.min.x -= e.size.x * 0.5f;
+	b.min.y -= e.size.y * 0.5f;
+	b.min.z -= e.size.z * 0.5f;
+
+	// point ray in direction of movement
+	Ray ray = {
+		.position = Vector3Add(e.position, (Vector3){.y = e.size.y * 0.5f}),
+		.direction = Vector3Normalize(e.velocity),
+	};
+
+	// let raylib do the rest
+	return GetRayCollisionBox(ray, b);
 }
