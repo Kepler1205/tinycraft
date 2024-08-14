@@ -55,19 +55,6 @@ void player_destroy(player* player) {
 	free(player->camera);
 }
 
-// called per-frame to add a force vector
-static inline void player_add_force(player* player, Vector3 force) {
-	const float delta_t = GetFrameTime();
-	if (!Vector3Equals(force, Vector3Zero()))
-		player->e.velocity = Vector3Add(player->e.velocity, Vector3Scale(force, delta_t));
-}
-
-// called once to add an impulse (instantaeious force)
-static inline void player_add_impulse(player* player, Vector3 force) {
-	if (!Vector3Equals(force, Vector3Zero()))
-		player->e.velocity = Vector3Add(player->e.velocity, force);
-}
-
 static void player_input(player* player) {
 	if (IsKeyPressed(KEY_ESCAPE)) {
 		switch (player->gamemode) {
@@ -194,7 +181,7 @@ static void player_movement(player* player) {
 		player->is_flying = 0;
 		if (IsKeyDown(KEY_SPACE)) {
 			player->e.is_on_ground = 0;
-			player_add_impulse(player, (Vector3){.y=12});
+			entity_add_force(&player->e, (Vector3){.y=12});
 		}
 	} else if (!player->is_flying)
 		speed_multiplier *= 0.1;
@@ -207,7 +194,7 @@ static void player_movement(player* player) {
 	acceleration_delta = Vector3Scale(acceleration_delta, player->movement_speed * speed_multiplier);
 
 	// apply movement
-	player_add_force(player, acceleration_delta);
+	entity_add_force(&player->e, acceleration_delta);
 
 }
 
@@ -217,9 +204,9 @@ static void player_physics(player* player) {
 	// Friction
 	if (!Vector3Equals(player->e.velocity, Vector3Zero())) {
 		if (player->e.is_on_ground)
-			player_add_force(player, Vector3Scale(player->e.velocity, -GROUND_FRICTION));
+			entity_add_force(&player->e, Vector3Scale(player->e.velocity, -GROUND_FRICTION));
 		else
-			player_add_force(player, Vector3Scale(player->e.velocity, -AIR_FRICTION));
+			entity_add_force(&player->e, Vector3Scale(player->e.velocity, -AIR_FRICTION));
 	}
 
 	if (FloatEquals(player->e.velocity.x, 0))
@@ -234,7 +221,7 @@ static void player_physics(player* player) {
 		if (!player->is_flying) {
 			// const float g = -9.81;
 			const float g = -45;
-			player_add_force(player, (Vector3){.y = g});
+			entity_add_force(&player->e, (Vector3){.y = g});
 		} 
 
 		// Collision

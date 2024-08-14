@@ -4,8 +4,8 @@
 #include <raylib.h>
 #include <raymath.h>
 
-#include "world.h"
 #include "entity.h"
+#include "world.h"
 
 bool entity_aabb(entity* e, Vector3 block_pos, Vector3* collision_depth) {
 	Vector3 b_max = block_pos;
@@ -256,4 +256,12 @@ void entity_block_collision(entity* e) {
 				e->is_on_ground = 1;
 		}
 	}
+}
+
+void entity_add_force(entity* e, Vector3 force) {
+	e->velocity = Vector3Add(e->velocity, Vector3Scale(force, GetFrameTime()));
+}
+
+void entity_add_impulse(entity* e, Vector3 force) {
+	e->velocity = Vector3Add(e->velocity, force);
 }
