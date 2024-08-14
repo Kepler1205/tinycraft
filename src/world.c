@@ -196,16 +196,6 @@ aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos) {
 		fminf(e_max.z, b_max.z) - fmaxf(e_min.z, b_min.z),
 	};
 
-	/* // fix to stop player jumping up walls,
-	// effectivley shaves of the corners of the blocks by epsilon
-	// bugs at low FPS
-	float epsilon = GetFrameTime() * 4;
-	if (
-			(overlap_depth.x < epsilon && overlap_depth.y < epsilon) ||
-			(overlap_depth.z < epsilon && overlap_depth.y < epsilon)
-	   )
-		return result; */
-
 	if ((overlap_depth.x > 0) && (overlap_depth.y > 0) && (overlap_depth.z > 0)) {
 		/* collision found, now determine which face
 		 * has been collided with 
@@ -237,98 +227,26 @@ aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos) {
 	return result;
 }
 
-/* AABB collision
+/* swept AABB collision
  *
  * https://gamedev.net/tutorials/programming/general-and-gameplay-programming/swept-aabb-collision-detection-and-response-r3084/
  */
-aabb_collision_result entity_block_collision_swept(entity e, BoundingBox b) {
-	aabb_collision_result result = {0};
-	Vector3 inv_entry, inv_exit;
-	float box_width = 1;
+RayCollision entity_block_collision_swept(entity e, BoundingBox b) {
+	// add entity size to box size
+	b.max.x += e.size.x * 0.5f;
+	b.max.y += e.size.y * 0.5f;
+	b.max.z += e.size.z * 0.5f;
 
-	// find distance between objects on the near and far sides
-	if (e.velocity.x > 0) {
-		inv_entry.x = b.min.x - (e.position.x + e.size.x);
-		inv_exit.x = (b.min.x + box_width) - e.position.x;
-	} else {
-		inv_entry.x = (b.min.x + box_width) - e.position.x; 
-		inv_exit.x = b.min.x - (e.position.x + e.size.x);
-	}
+	b.min.x -= e.size.x * 0.5f;
+	b.min.y -= e.size.y * 0.5f;
+	b.min.z -= e.size.z * 0.5f;
 
-	if (e.velocity.y > 0) {
-		inv_entry.y = b.min.y - (e.position.y + e.size.y);
-		inv_exit.y = (b.min.y + box_width) - e.position.y;
-	} else {
-		inv_exit.y = b.min.y - (e.position.y + e.size.y);
-		inv_entry.y = (b.min.y + box_width) - e.position.y;
-	}
+	// point ray in direction of movement
+	Ray ray = {
+		.position = Vector3Add(e.position, (Vector3){.y = e.size.y * 0.5f}),
+		.direction = Vector3Normalize(e.velocity),
+	};
 
-	if (e.velocity.z > 0) {
-		inv_entry.z = b.min.z - (e.position.z + e.size.z);
-		inv_exit.z = (b.min.z + box_width) - e.position.z;
-	} else {
-		inv_exit.z = b.min.z - (e.position.z + e.size.z);
-		inv_entry.z = (b.min.z + box_width) - e.position.z;
-	}
-
-	Vector3 entry, exit;
-
-	if (e.velocity.x == 0) { // avoid divide by 0
-		entry.x = -INFINITY;
-		exit.x = INFINITY;
-	} else {
-		entry.x = inv_entry.x / e.velocity.x;
-		exit.x = inv_exit.x / e.velocity.x;
-	}
-
-	if (e.velocity.y == 0) {
-		entry.y = -INFINITY;
-		exit.y = INFINITY;
-	} else {
-		entry.y = inv_entry.y / e.velocity.y;
-		exit.y = inv_exit.y / e.velocity.y;
-	}
-
-	if (e.velocity.z == 0) {
-		entry.z = -INFINITY;
-		exit.z = INFINITY;
-	} else {
-		entry.z = inv_entry.z / e.velocity.z;
-		exit.z = inv_exit.z / e.velocity.z;
-	}
-
-	float entry_time = fmaxf(entry.x, fmaxf(entry.y, entry.z));
-	float exit_time = fmaxf(exit.x, fmaxf(exit.y, exit.z));
-
-	if (
-			(entry_time > exit_time) || 
-			(entry.x < 0.0f && entry.y < 0.0f && entry.z < 0.0f) ||
-			(entry.x > 1.0f || entry.y > 1.0f || entry.z > 1.0f)
-	   ) {
-		// no collision
-		result.collision_time = 1;
-		return result;
-	}
-
-	result.collided = 1;
-	result.collision_time = entry_time;
-
-	if (entry.x == entry_time) {
-		if (inv_entry.x < 0)
-			result.normal.x = 1;
-		else
-			result.normal.x = -1;
-	} else if (entry.y == entry_time) {
-		if (inv_entry.y < 0)
-			result.normal.y = 1;
-		else
-			result.normal.y = -1;
-	} else if (entry.z == entry_time){
-		if (inv_entry.z < 0)
-			result.normal.z = 1;
-		else
-			result.normal.z = -1;
-	}
-
-	return result;
+	// let raylib do the rest
+	return GetRayCollisionBox(ray, b);
 }
