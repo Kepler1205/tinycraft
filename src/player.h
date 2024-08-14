@@ -3,7 +3,7 @@
 #include <raylib.h>
 
 #include "items.h"
-#include "world.h"
+#include "entity.h"
 
 
 typedef enum {
@@ -23,7 +23,6 @@ typedef struct {
 	float movement_speed;
 	float reach;
 	bool is_flying;
-	bool is_on_ground;
 	enum {
 		FIRST_PERSON = 0,
 		THIRD_PERSON,

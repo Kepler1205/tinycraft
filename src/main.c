@@ -176,7 +176,7 @@ int main(void) {
 				player.e.velocity.x, player.e.velocity.y, player.e.velocity.z,
 				player_chunk_pos.x, player_chunk_pos.z,
 				player.is_flying,
-				player.is_on_ground,
+				player.e.is_on_ground,
 				player.camera->position.x, player.camera->position.y, player.camera->position.z,
 				player.camera->up.x, player.camera->up.y, player.camera->up.z,
 				player.camera->target.x, player.camera->target.y, player.camera->target.z,

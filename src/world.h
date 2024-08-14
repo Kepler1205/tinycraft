@@ -5,15 +5,6 @@
 
 #include "chunk.h"
 
-// entities are moveable objects with one collider 
-typedef struct {
-	int id;
-	Vector3 position; // location at the center of the bottom face
-	Vector3 velocity;
-	Vector3 size;
-	float mass;
-} entity;
-
 typedef struct {
 	// resizeable array of pointers to chunks
 	chunk_dictionary chunk_dict;
@@ -72,13 +63,3 @@ block* world_get_block(world_chunk_pos chunk_pos, uint16_t bx, uint16_t by, uint
 /* Render all chunks in WORLD dictionary
  */
 void world_render_chunks(Camera3D* camera, Shader shader);
-
-// COLLISION FUNCTIONS
-
-/* Calculates collision for an entity and block.
- * returns a signed value for overlap depth so you can
- * just do e.position + result.overlap_depth to move the 
- * entity out of the block
- */
-aabb_collision_result entity_block_collision(entity* e, Vector3 block_pos);
-RayCollision entity_block_collision_swept(entity e, BoundingBox b);
