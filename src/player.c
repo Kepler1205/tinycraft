@@ -55,17 +55,6 @@ void player_destroy(player* player) {
 	free(player->camera);
 }
 
-static inline void player_set_position(player* player, Vector3 position) {
-	const Vector3 diff = Vector3Subtract(player->e.position, position);
-	player->e.position = Vector3Subtract(player->e.position, diff);
-	player->camera->position = Vector3Subtract(player->camera->position, diff);
-	player->camera->target = Vector3Subtract(player->camera->target, diff);
-}
-
-static inline void player_add_position(player* player, Vector3 position_delta) {
-	player_set_position(player, Vector3Add(player->e.position, position_delta));
-}
-
 // called per-frame to add a force vector
 static inline void player_add_force(player* player, Vector3 force) {
 	const float delta_t = GetFrameTime();
@@ -102,12 +91,6 @@ static void player_input(player* player) {
 		}
 	}
 
-	// DEBUG
-	if (IsKeyPressed(KEY_R)) {
-		player_set_position(player, Vector3Zero());
-		player->camera->target = (Vector3){player->reach, 1.6f, 0};
-	}
-
 	if (IsKeyPressed(KEY_ONE))
 		player->gamemode = MODE_SURVIVAL;
 	if (IsKeyPressed(KEY_TWO))
@@ -136,9 +119,40 @@ static void player_input(player* player) {
 	}
 }
 
-static void player_movement(player* player) {
-	Vector3 velocity_delta = {0};
+static void player_camera_movement(player* player) {
+	// Camera movement
+	const Vector2 mouse_delta = GetMouseDelta();
+	const float camera_sensitivity = 0.007f;
+	const float camera_y_offset = 1.6f;
 
+	switch (player->camera_mode) {
+		default:
+		case (FIRST_PERSON):
+			{
+				CameraYaw(player->camera, camera_sensitivity * -mouse_delta.x, 0);
+				CameraPitch(player->camera, camera_sensitivity * -mouse_delta.y, 1, 0, 0);
+
+				Vector3 head_pos = Vector3Add(player->e.position, (Vector3){.y=camera_y_offset});
+				player->camera->target = Vector3Add(head_pos, Vector3Scale(Vector3Normalize(GetCameraForward(player->camera)), player->reach));
+				player->camera->position = head_pos;
+			}
+			break;
+		case (THIRD_PERSON):
+			{
+				CameraYaw(player->camera, camera_sensitivity * -mouse_delta.x, 0);
+				CameraPitch(player->camera, camera_sensitivity * -mouse_delta.y, 1, 0, 0);
+
+				const float distance = 5; // distance of camera from player
+
+				Vector3 head_pos = Vector3Add(player->e.position, (Vector3){.y=camera_y_offset});
+				player->camera->position = Vector3Add(head_pos, Vector3Scale(Vector3Normalize(GetCameraForward(player->camera)), -distance));
+				player->camera->target = head_pos;
+			}
+			break;
+	}
+}
+
+static void player_movement(player* player) {
 	float speed_multiplier = 1;
 
 	if (player->gamemode == MODE_SPECTATOR)
@@ -195,35 +209,6 @@ static void player_movement(player* player) {
 	// apply movement
 	player_add_force(player, acceleration_delta);
 
-	// Camera movement
-	const Vector2 mouse_delta = GetMouseDelta();
-	const float camera_sensitivity = 0.007f;
-	const float camera_y_offset = 1.6f;
-
-	switch (player->camera_mode) {
-		default:
-		case (FIRST_PERSON):
-			{
-				CameraYaw(player->camera, camera_sensitivity * -mouse_delta.x, 0);
-				CameraPitch(player->camera, camera_sensitivity * -mouse_delta.y, 1, 0, 0);
-
-				player->camera->position = Vector3Add(player->e.position, (Vector3){.y=camera_y_offset}); // head position offset
-				player->camera->target = Vector3Add(player->camera->position, Vector3Scale(Vector3Normalize(GetCameraForward(player->camera)), player->reach));
-			}
-			break;
-		case (THIRD_PERSON):
-			{
-				CameraYaw(player->camera, camera_sensitivity * -mouse_delta.x, 0);
-				CameraPitch(player->camera, camera_sensitivity * -mouse_delta.y, 1, 0, 0);
-
-				const float distance = 5; // distance of camera from player
-
-				Vector3 head_pos = Vector3Add(player->e.position, (Vector3){.y=camera_y_offset});
-				player->camera->position = Vector3Add(head_pos, Vector3Scale(Vector3Normalize(GetCameraForward(player->camera)), -distance));
-				player->camera->target = head_pos;
-			}
-			break;
-	}
 }
 
 static void player_physics(player* player) {
@@ -257,7 +242,7 @@ static void player_physics(player* player) {
 	}
 
 	// apply velocity to position, MUST BE LAST
-	player_add_position(player, Vector3Scale(player->e.velocity, delta_t));
+	player->e.position = Vector3Add(player->e.position, Vector3Scale(player->e.velocity, delta_t));
 }
 
 // update method for player
@@ -288,5 +273,7 @@ void player_update(player* player) {
 		player_movement(player);
 		// apply physics (gravity, velocity etc.)
 		player_physics(player);
+		player_camera_movement(player);
+
 	}
 }
